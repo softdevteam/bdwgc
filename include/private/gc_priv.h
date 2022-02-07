@@ -88,6 +88,13 @@ typedef GC_word word;
 typedef GC_signed_word signed_word;
 typedef unsigned int unsigned32;
 
+enum MARK_BYTE {
+    UNMANAGED = 0,
+    UNMANAGED_MARKED = 1,
+    MANAGED_UNMARKED = 2,
+    MANAGED_MARKED = 3,
+};
+
 typedef int GC_bool;
 #define TRUE 1
 #define FALSE 0
@@ -1837,11 +1844,17 @@ struct GC_traced_stack_sect_s {
  * relative to the beginning of the block, including unused words)
  */
 
+# define set_managed_bit_from_hdr(hhdr,n) ((hhdr)->hb_marks[n] |= (1 << 1))
+# define clear_managed_bit_from_hdr(hhdr,n) ((hhdr)->hb_marks[n] &= ~(1 << 1))
+# define managed_bit_is_set(hhdr,n) (((hhdr)->hb_marks[n] >> 1) & 1)
+
 #ifdef USE_MARK_BYTES
 # define mark_bit_from_hdr(hhdr,n) ((hhdr)->hb_marks[n])
-# define set_mark_bit_from_hdr(hhdr,n) ((hhdr)->hb_marks[n] = 1)
-# define clear_mark_bit_from_hdr(hhdr,n) ((hhdr)->hb_marks[n] = 0)
+# define set_mark_bit_from_hdr(hhdr,n) ((hhdr)->hb_marks[n] |= 1)
+# define clear_mark_bit_from_hdr(hhdr,n) ((hhdr)->hb_marks[n] &= ~1)
+# define mark_bit_is_set(hhdr,n) ((hhdr)->hb_marks[n] & 0x1)
 #else
+
 /* Set mark bit correctly, even if mark bits may be concurrently        */
 /* accessed.                                                            */
 # if defined(PARALLEL_MARK) || (defined(THREAD_SANITIZER) && defined(THREADS))

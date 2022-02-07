@@ -290,6 +290,16 @@ GC_API int GC_CALL GC_is_marked(const void *) GC_ATTR_NONNULL(1);
 GC_API void GC_CALL GC_clear_mark_bit(const void *) GC_ATTR_NONNULL(1);
 GC_API void GC_CALL GC_set_mark_bit(const void *) GC_ATTR_NONNULL(1);
 
+/* Slow/general manage bit manipulation.  The caller should hold the      */
+/* allocation lock.  GC_is_managed returns 1 (TRUE) or 0.  The argument  */
+/* should be the real address of an object (i.e. the address of the     */
+/* debug header if there is one).                                       */
+GC_API int GC_CALL GC_is_managed(const void *) GC_ATTR_NONNULL(1);
+GC_API int GC_CALL GC_is_managed_marked(const void *) GC_ATTR_NONNULL(1);
+GC_API int GC_CALL GC_is_managed_unmarked(const void *) GC_ATTR_NONNULL(1);
+GC_API void GC_CALL GC_set_managed(const void *) GC_ATTR_NONNULL(1);
+GC_API void GC_CALL GC_set_unmanaged(const void *) GC_ATTR_NONNULL(1);
+
 /* Push everything in the given range onto the mark stack.              */
 /* (GC_push_conditional pushes either all or only dirty pages depending */
 /* on the third argument.)  GC_push_all_eager also ensures that stack   */

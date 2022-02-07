@@ -191,7 +191,8 @@ STATIC ptr_t GC_reclaim_clear(struct hblk *hbp, hdr *hhdr, word sz,
 
     /* go through all words in block */
         while ((word)p <= (word)plim) {
-            if (mark_bit_from_hdr(hhdr, bit_no)) {
+
+            if (mark_bit_from_hdr(hhdr, bit_no) != MANAGED_UNMARKED) {
                 p += sz;
             } else {
                 /* Object is available - put it on list. */
@@ -199,6 +200,7 @@ STATIC ptr_t GC_reclaim_clear(struct hblk *hbp, hdr *hhdr, word sz,
                 list = p;
 
                 p = (ptr_t)GC_clear_block((word *)p, sz, count);
+                clear_managed_bit_from_hdr(hhdr, bit_no);
             }
             bit_no += MARK_BIT_OFFSET(sz);
         }
@@ -221,11 +223,12 @@ STATIC ptr_t GC_reclaim_uninit(struct hblk *hbp, hdr *hhdr, word sz,
 
     /* go through all words in block */
         while ((word)p <= (word)plim) {
-            if (!mark_bit_from_hdr(hhdr, bit_no)) {
+            if (mark_bit_from_hdr(hhdr, bit_no) == MANAGED_UNMARKED) {
                 n_bytes_found += sz;
                 /* object is available - put on list */
-                    obj_link(p) = list;
-                    list = ((ptr_t)p);
+                obj_link(p) = list;
+                list = ((ptr_t)p);
+                clear_managed_bit_from_hdr(hhdr, bit_no);
             }
             p = (word *)((ptr_t)p + sz);
             bit_no += MARK_BIT_OFFSET(sz);
@@ -252,7 +255,8 @@ STATIC ptr_t GC_reclaim_uninit(struct hblk *hbp, hdr *hhdr, word sz,
     plim = p + HBLKSIZE - sz;
 
     for (; (word)p <= (word)plim; bit_no += MARK_BIT_OFFSET(sz)) {
-        if (mark_bit_from_hdr(hhdr, bit_no)) {
+
+        if (mark_bit_from_hdr(hhdr, bit_no) != MANAGED_UNMARKED) {
             p += sz;
         } else if ((*disclaim)(p)) {
             set_mark_bit_from_hdr(hhdr, bit_no);
@@ -262,6 +266,7 @@ STATIC ptr_t GC_reclaim_uninit(struct hblk *hbp, hdr *hhdr, word sz,
             obj_link(p) = list;
             list = p;
             p = (ptr_t)GC_clear_block((word *)p, sz, count);
+            clear_managed_bit_from_hdr(hhdr, bit_no);
         }
     }
     return list;
@@ -282,9 +287,10 @@ STATIC void GC_reclaim_check(struct hblk *hbp, hdr *hhdr, word sz)
     plim = p + HBLKSIZE - sz;
     for (bit_no = 0; (word)p <= (word)plim;
          p += sz, bit_no += MARK_BIT_OFFSET(sz)) {
-      if (!mark_bit_from_hdr(hhdr, bit_no)) {
-        GC_add_leaked(p);
-      }
+
+        if (mark_bit_from_hdr(hhdr, bit_no) == MANAGED_UNMARKED) {
+            GC_add_leaked(p);
+        }
     }
 }
 
@@ -394,7 +400,8 @@ STATIC void GC_reclaim_block(struct hblk *hbp, word report_if_found)
         sz = hhdr -> hb_sz;
 #   endif
     if( sz > MAXOBJBYTES ) {  /* 1 big object */
-        if( !mark_bit_from_hdr(hhdr, 0) ) {
+
+        if( mark_bit_from_hdr(hhdr, 0) == MANAGED_UNMARKED ) {
             if (report_if_found) {
               GC_add_leaked((ptr_t)hbp);
             } else {
@@ -827,7 +834,7 @@ STATIC void GC_do_enumerate_reachable_objects(struct hblk *hbp, word ped)
   }
   /* Go through all words in block. */
   for (bit_no = 0; p <= plim; bit_no += MARK_BIT_OFFSET(sz), p += sz) {
-    if (mark_bit_from_hdr(hhdr, bit_no)) {
+    if (mark_bit_from_hdr(hhdr, bit_no) != MANAGED_UNMARKED) {
       ((struct enumerate_reachable_s *)ped)->proc(p, sz,
                         ((struct enumerate_reachable_s *)ped)->client_data);
     }

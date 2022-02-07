@@ -123,7 +123,13 @@ GC_INNER void GC_clear_hdr_marks(hdr *hhdr)
     last_bit = FINAL_MARK_BIT((size_t)hhdr->hb_sz);
 # endif
 
-    BZERO(hhdr -> hb_marks, sizeof(hhdr->hb_marks));
+    unsigned i;
+    size_t sz = (size_t)hhdr->hb_sz;
+    unsigned n_marks = (unsigned)FINAL_MARK_BIT(sz);
+
+    for (i = 0; i <= n_marks; i += (unsigned)MARK_BIT_OFFSET(sz)) {
+        hhdr -> hb_marks[i] &= ~1;
+    }
     set_mark_bit_from_hdr(hhdr, last_bit);
     hhdr -> hb_n_marks = 0;
 }
@@ -170,7 +176,7 @@ GC_API void GC_CALL GC_set_mark_bit(const void *p)
     hdr * hhdr = HDR(h);
     word bit_no = MARK_BIT_NO((ptr_t)p - (ptr_t)h, hhdr -> hb_sz);
 
-    if (!mark_bit_from_hdr(hhdr, bit_no)) {
+    if (!mark_bit_is_set(hhdr, bit_no)) {
       set_mark_bit_from_hdr(hhdr, bit_no);
       ++hhdr -> hb_n_marks;
     }
@@ -182,7 +188,7 @@ GC_API void GC_CALL GC_clear_mark_bit(const void *p)
     hdr * hhdr = HDR(h);
     word bit_no = MARK_BIT_NO((ptr_t)p - (ptr_t)h, hhdr -> hb_sz);
 
-    if (mark_bit_from_hdr(hhdr, bit_no)) {
+    if (mark_bit_is_set(hhdr, bit_no)) {
       size_t n_marks = hhdr -> hb_n_marks;
 
       GC_ASSERT(n_marks != 0);
@@ -200,13 +206,64 @@ GC_API void GC_CALL GC_clear_mark_bit(const void *p)
     }
 }
 
+/* Allow the GC to manage this allocation. I.e. sweep it when unreachable. */
+GC_API void GC_CALL GC_set_managed(const void *p)
+{
+    struct hblk *h = HBLKPTR(p);
+    hdr * hhdr = HDR(h);
+    word bit_no = MARK_BIT_NO((ptr_t)p - (ptr_t)h, hhdr -> hb_sz);
+
+    GC_ASSERT(!managed_bit_is_set(hhdr, bit_no));
+
+    set_managed_bit_from_hdr(hhdr, bit_no);
+}
+
+/* Prevent the GC from collecting this allocation. */
+GC_API void GC_CALL GC_set_unmanaged(const void *p)
+{
+    struct hblk *h = HBLKPTR(p);
+    hdr * hhdr = HDR(h);
+    word bit_no = MARK_BIT_NO((ptr_t)p - (ptr_t)h, hhdr -> hb_sz);
+
+    GC_ASSERT(managed_bit_is_set(hhdr, bit_no));
+
+    clear_managed_bit_from_hdr(hhdr, bit_no);
+}
+
 GC_API int GC_CALL GC_is_marked(const void *p)
 {
     struct hblk *h = HBLKPTR(p);
     hdr * hhdr = HDR(h);
     word bit_no = MARK_BIT_NO((ptr_t)p - (ptr_t)h, hhdr -> hb_sz);
 
-    return (int)mark_bit_from_hdr(hhdr, bit_no); /* 0 or 1 */
+    return (int) (mark_bit_is_set(hhdr, bit_no));
+}
+
+GC_API int GC_CALL GC_is_managed(const void *p)
+{
+    struct hblk *h = HBLKPTR(p);
+    hdr * hhdr = HDR(h);
+    word bit_no = MARK_BIT_NO((ptr_t)p - (ptr_t)h, hhdr -> hb_sz);
+
+    return (int) (managed_bit_is_set(hhdr, bit_no)); /* 0 or 1 */
+}
+
+GC_API int GC_CALL GC_is_managed_marked(const void *p)
+{
+    struct hblk *h = HBLKPTR(p);
+    hdr * hhdr = HDR(h);
+    word bit_no = MARK_BIT_NO((ptr_t)p - (ptr_t)h, hhdr -> hb_sz);
+
+    return (int) ((hhdr)->hb_marks[bit_no] == MANAGED_MARKED);
+}
+
+GC_API int GC_CALL GC_is_managed_unmarked(const void *p)
+{
+    struct hblk *h = HBLKPTR(p);
+    hdr * hhdr = HDR(h);
+    word bit_no = MARK_BIT_NO((ptr_t)p - (ptr_t)h, hhdr -> hb_sz);
+
+    return (int) ((hhdr)->hb_marks[bit_no] == MANAGED_UNMARKED);
 }
 
 /* Clear mark bits in all allocated heap blocks.  This invalidates the  */
@@ -1882,7 +1939,8 @@ STATIC void GC_push_marked(struct hblk *h, hdr *hhdr)
       GC_mark_stack_top_reg = GC_mark_stack_top;
       for (p = h -> hb_body, bit_no = 0; (word)p <= (word)lim;
            p += sz, bit_no += MARK_BIT_OFFSET(sz)) {
-        if (mark_bit_from_hdr(hhdr, bit_no)) {
+
+          if (mark_bit_is_set(hhdr, bit_no)) {
           /* Mark from fields inside the object. */
           GC_mark_stack_top_reg = GC_push_obj(p, hhdr, GC_mark_stack_top_reg,
                                               mark_stack_limit);

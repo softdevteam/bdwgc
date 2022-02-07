@@ -550,6 +550,8 @@ GC_API GC_ATTR_MALLOC char * GC_CALL
 GC_API GC_ATTR_MALLOC GC_ATTR_ALLOC_SIZE(1) void * GC_CALL
         GC_malloc_uncollectable(size_t /* size_in_bytes */);
 GC_API GC_ATTR_DEPRECATED void * GC_CALL GC_malloc_stubborn(size_t);
+GC_API GC_ATTR_MALLOC GC_ATTR_ALLOC_SIZE(1) void * GC_CALL
+        GC_malloc_unmanaged(size_t /* size_in_bytes */);
 
 /* GC_memalign() is not well tested.                                    */
 GC_API GC_ATTR_MALLOC GC_ATTR_ALLOC_SIZE(2) void * GC_CALL

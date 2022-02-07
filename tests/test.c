@@ -1499,6 +1499,17 @@ void run_one_test(void)
              GC_FREE(GC_MALLOC_IGNORE_OFF_PAGE(2));
            }
          }
+
+        {
+           size_t i;
+           for (i = 0; i < 10000; ++i) {
+             (void)GC_MALLOC(i);
+             GC_free(GC_malloc_unmanaged(i));
+             (void)GC_MALLOC_ATOMIC(i);
+             GC_set_managed(GC_malloc_unmanaged(i));
+             if (i == 500) GC_gcollect();
+           }
+         }
     thr_hndl_sb.gc_thread_handle = GC_get_my_stackbottom(&thr_hndl_sb.sb);
 #   ifdef GC_GCJ_SUPPORT
       GC_REGISTER_DISPLACEMENT(sizeof(struct fake_vtable *));

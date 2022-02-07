@@ -981,7 +981,7 @@ GC_INNER void GC_set_fl_marks(ptr_t q)
       for (;;) {
         word bit_no = MARK_BIT_NO((ptr_t)q - (ptr_t)h, sz);
 
-        if (!mark_bit_from_hdr(hhdr, bit_no)) {
+        if (!mark_bit_is_set(hhdr, bit_no)) {
           set_mark_bit_from_hdr(hhdr, bit_no);
           ++hhdr -> hb_n_marks;
         }
@@ -1057,7 +1057,8 @@ STATIC void GC_clear_fl_marks(ptr_t q)
       for (;;) {
         word bit_no = MARK_BIT_NO((ptr_t)q - (ptr_t)h, sz);
 
-        if (mark_bit_from_hdr(hhdr, bit_no)) {
+        if (mark_bit_from_hdr(hhdr, bit_no) == MANAGED_MARKED ||
+            mark_bit_from_hdr(hhdr, bit_no) == UNMANAGED_MARKED) {
           size_t n_marks = hhdr -> hb_n_marks;
 
           GC_ASSERT(n_marks != 0);
