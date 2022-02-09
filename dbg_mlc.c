@@ -816,6 +816,8 @@ GC_API void GC_CALL GC_debug_free(void * p)
         word sz = hhdr -> hb_sz;
         word obj_sz = BYTES_TO_WORDS(sz - sizeof(oh));
 
+        if(GC_is_managed(p)) GC_set_unmanaged(p);
+
         for (i = 0; i < obj_sz; ++i)
           ((word *)p)[i] = GC_FREED_MEM_MARKER;
         GC_ASSERT((word *)p + i == (word *)(base + sz));
@@ -989,7 +991,7 @@ STATIC void GC_check_heap_block(struct hblk *hbp, word dummy GC_ATTR_UNUSED)
     /* go through all words in block */
     for (bit_no = 0; (word)p <= (word)plim;
          bit_no += MARK_BIT_OFFSET(sz), p += sz) {
-      if (mark_bit_from_hdr(hhdr, bit_no) && GC_HAS_DEBUG_INFO((ptr_t)p)) {
+      if (mark_bit_from_hdr(hhdr, bit_no) != MANAGED_UNMARKED && GC_HAS_DEBUG_INFO((ptr_t)p)) {
         ptr_t clobbered = GC_check_annotated_obj((oh *)p);
         if (clobbered != 0)
           GC_add_smashed(clobbered);

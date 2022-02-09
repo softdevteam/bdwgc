@@ -103,6 +103,7 @@ GC_API GC_ATTR_MALLOC void * GC_CALL GC_finalized_malloc(size_t lb,
                                 GC_finalized_kind);
     if (EXPECT(NULL == op, FALSE))
         return NULL;
+    GC_set_managed(op);
     *op = (word)fclos | FINALIZER_CLOSURE_FLAG;
     GC_dirty(op);
     REACHABLE_AFTER_DIRTY(fclos);

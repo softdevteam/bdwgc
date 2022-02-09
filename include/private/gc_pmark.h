@@ -157,9 +157,10 @@ GC_INLINE mse * GC_push_obj(ptr_t obj, hdr * hhdr,  mse * mark_stack_top,
         volatile unsigned char * mark_byte_addr = \
                         (unsigned char *)(hhdr)->hb_marks + (bit_no); \
         /* Unordered atomic load and store are sufficient here. */ \
-        if (AO_char_load(mark_byte_addr) != 0) \
+        unsigned char mb = AO_char_load(mark_byte_addr); \
+        if ((mb & 1) != 0) \
           break; /* go to the enclosing loop end */ \
-        AO_char_store(mark_byte_addr, 1); \
+        AO_char_store(mark_byte_addr, (mb | 1)); \
       }
 # else
 #   define SET_MARK_BIT_EXIT_IF_SET(hhdr, bit_no) \

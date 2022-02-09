@@ -343,11 +343,26 @@ GC_API GC_ATTR_MALLOC void * GC_CALL GC_malloc_kind_global(size_t lb, int k)
 /* Allocate lb bytes of atomic (pointer-free) data.     */
 GC_API GC_ATTR_MALLOC void * GC_CALL GC_malloc_atomic(size_t lb)
 {
-    return GC_malloc_kind(lb, PTRFREE);
+    void * ptr = GC_malloc_kind(lb, PTRFREE);
+    if (ptr)
+        GC_set_managed(ptr);
+    return ptr;
 }
 
 /* Allocate lb bytes of composite (pointerful) data.    */
 GC_API GC_ATTR_MALLOC void * GC_CALL GC_malloc(size_t lb)
+{
+    void * ptr = GC_malloc_kind(lb, NORMAL);
+    if (ptr)
+        GC_set_managed(ptr);
+    return ptr;
+}
+
+/* Allocate lb bytes of composite (pointerful) data which will not be eligible
+ * for garbage collection until promoted to managed (collectable) with a call to
+ * `GC_set_managed`.
+ */
+GC_API GC_ATTR_MALLOC void * GC_CALL GC_malloc_unmanaged(size_t lb)
 {
     return GC_malloc_kind(lb, NORMAL);
 }
@@ -607,6 +622,11 @@ GC_API void GC_CALL GC_free(void * p)
                 /* Its unnecessary to clear the mark bit.  If the       */
                 /* object is reallocated, it doesn't matter.  O.w. the  */
                 /* collector will do it, since it's on a free list.     */
+
+        // Set the block back to unmanaged.
+        word bit_no = MARK_BIT_NO((ptr_t)p - (ptr_t)h, hhdr -> hb_sz);
+        clear_managed_bit_from_hdr(hhdr, bit_no);
+
         if (ok -> ok_init && EXPECT(sz > sizeof(word), TRUE)) {
             BZERO((word *)p + 1, sz-sizeof(word));
         }

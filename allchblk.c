@@ -949,6 +949,10 @@ GC_INNER void GC_freehblk(struct hblk *hbp)
       /* space at once.  If we don't catch it here, strange things happen   */
       /* later.                                                             */
     GC_remove_counts(hbp, size);
+
+    // Clear all the mark bytes to prevent blocks from lingering as managed.
+    // Instead, this should only be opted-in on each allocation.
+    BZERO(hhdr->hb_marks, sizeof(hhdr->hb_marks));
     hhdr->hb_sz = size;
 #   ifdef USE_MUNMAP
       hhdr -> hb_last_reclaimed = (unsigned short)GC_gc_no;
