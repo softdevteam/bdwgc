@@ -226,7 +226,9 @@
 #endif
 
 /* Allocation Statistics.  Synchronization is not strictly necessary.   */
+# if !defined(ALLOC_SWITCHING)
 volatile AO_t uncollectable_count = 0;
+# endif
 volatile AO_t collectable_count = 0;
 volatile AO_t atomic_count = 0;
 volatile AO_t realloc_count = 0;
@@ -409,6 +411,7 @@ sexpr small_cons (sexpr x, sexpr y)
   }
 #endif
 
+# if !defined(ALLOC_SWITCHING)
 sexpr small_cons_uncollectable (sexpr x, sexpr y)
 {
     sexpr r = (sexpr)GC_MALLOC_UNCOLLECTABLE(sizeof(struct SEXPR));
@@ -419,6 +422,7 @@ sexpr small_cons_uncollectable (sexpr x, sexpr y)
     GC_PTR_STORE_AND_DIRTY(&r->sexpr_car, x);
     return r;
 }
+# endif
 
 #ifdef GC_GCJ_SUPPORT
   sexpr gcj_cons(sexpr x, sexpr y)
@@ -492,6 +496,7 @@ sexpr gcj_ints(int low, int up)
 }
 #endif /* GC_GCJ_SUPPORT */
 
+# if !defined(ALLOC_SWITCHING)
 /* To check uncollectible allocation we build lists with disguised cdr  */
 /* pointers, and make sure they don't go away.                          */
 sexpr uncollectable_ints(int low, int up)
@@ -503,6 +508,7 @@ sexpr uncollectable_ints(int low, int up)
                uncollectable_ints(low+1, up)));
     }
 }
+# endif
 
 void check_ints(sexpr list, int low, int up)
 {
@@ -525,6 +531,7 @@ void check_ints(sexpr list, int low, int up)
     }
 }
 
+# if !defined(ALLOC_SWITCHING)
 # define UNCOLLECTABLE_CDR(x) (sexpr)(~(GC_word)(cdr(x)))
 
 void check_uncollectable_ints(sexpr list, int low, int up)
@@ -542,6 +549,7 @@ void check_uncollectable_ints(sexpr list, int low, int up)
         check_uncollectable_ints(UNCOLLECTABLE_CDR(list), low+1, up);
     }
 }
+# endif
 
 /* Not used, but useful for debugging: */
 void print_int_list(sexpr x)
@@ -714,7 +722,6 @@ void *GC_CALLBACK reverse_test_inner(void *data)
     sexpr b;
     sexpr c;
     sexpr d;
-    sexpr e;
     sexpr *f, *g, *h;
 
     if (data == 0) {
@@ -746,9 +753,12 @@ void *GC_CALLBACK reverse_test_inner(void *data)
     a_set(ints(1, 49));
     b = ints(1, 50);
     c = ints(1, BIG);
+# if !defined(ALLOC_SWITCHING)
+    sexpr e;
     d = uncollectable_ints(1, 100);
     test_generic_malloc_or_special(d);
     e = uncollectable_ints(1, 1);
+# endif
     /* Check that realloc updates object descriptors correctly */
     AO_fetch_and_add1(&collectable_count);
     f = (sexpr *)GC_MALLOC(4 * sizeof(sexpr));
@@ -785,7 +795,9 @@ void *GC_CALLBACK reverse_test_inner(void *data)
     c = (sexpr)((char *)c + sizeof(char *));
     d = (sexpr)((char *)d + sizeof(char *));
 
+#if !defined(ALLOC_SWITCHING)
     GC_FREE((void *)e);
+#endif
 
     check_ints(b,1,50);
 # ifndef EMSCRIPTEN
@@ -828,7 +840,9 @@ void *GC_CALLBACK reverse_test_inner(void *data)
     d = (sexpr)((char *)d - sizeof(char *));
 
     check_ints(c,1,BIG);
+# if !defined(ALLOC_SWITCHING)
     check_uncollectable_ints(d, 1, 100);
+# endif
     check_ints(f[5], 1,17);
     check_ints(g[799], 1,18);
 #   ifdef GC_GCJ_SUPPORT
@@ -1050,7 +1064,7 @@ pthread_key_t fl_key;
 
 void * alloc8bytes(void)
 {
-# if defined(SMALL_CONFIG) || defined(GC_DEBUG)
+# if defined(SMALL_CONFIG) || defined(GC_DEBUG) || defined(ALLOC_SWITCHING)
     AO_fetch_and_add1(&collectable_count);
     return(GC_MALLOC(8));
 # else
@@ -1381,11 +1395,13 @@ void run_one_test(void)
                       (unsigned long)GC_size(GC_malloc(0)));
         FAIL;
       }
+# if !defined(ALLOC_SWITCHING)
       AO_fetch_and_add1(&uncollectable_count);
       if (GC_size(GC_malloc_uncollectable(0)) != MIN_WORDS * sizeof(GC_word)) {
         GC_printf("GC_malloc_uncollectable(0) failed\n");
         FAIL;
       }
+# endif
       AO_fetch_and_add1(&collectable_count);
       x = (char*)GC_malloc(16);
       if (GC_base(GC_PTR_ADD(x, 13)) != x) {
@@ -1500,6 +1516,7 @@ void run_one_test(void)
            }
          }
 
+# if defined(ALLOC_SWITCHING)
         {
            size_t i;
            for (i = 0; i < 10000; ++i) {
@@ -1510,6 +1527,8 @@ void run_one_test(void)
              if (i == 500) GC_gcollect();
            }
          }
+# endif
+
     thr_hndl_sb.gc_thread_handle = GC_get_my_stackbottom(&thr_hndl_sb.sb);
 #   ifdef GC_GCJ_SUPPORT
       GC_REGISTER_DISPLACEMENT(sizeof(struct fake_vtable *));
@@ -1764,8 +1783,10 @@ void check_heap_stats(void)
     GC_alloc_unlock();
     GC_printf("Completed %u tests\n", n_tests);
     GC_printf("Allocated %d collectable objects\n", (int)collectable_count);
+# if !defined(ALLOC_SWITCHING)
     GC_printf("Allocated %d uncollectable objects\n",
                   (int)uncollectable_count);
+# endif
     GC_printf("Allocated %d atomic objects\n", (int)atomic_count);
     GC_printf("Reallocated %d objects\n", (int)realloc_count);
 #   ifndef NO_TEST_HANDLE_FORK

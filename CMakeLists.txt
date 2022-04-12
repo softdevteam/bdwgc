@@ -259,6 +259,10 @@ if (disable_handle_fork)
   add_definitions("-DNO_HANDLE_FORK")
 endif()
 
+if (enable_allocation_switching)
+    add_definitions("-DALLOC_SWITCHING")
+endif()
+
 if (enable_gcj_support)
   add_definitions("-DGC_GCJ_SUPPORT")
   if (enable_threads AND NOT (enable_thread_local_alloc AND HOST MATCHES .*-.*-kfreebsd.*-gnu))

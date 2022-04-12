@@ -88,12 +88,14 @@ typedef GC_word word;
 typedef GC_signed_word signed_word;
 typedef unsigned int unsigned32;
 
+# if defined(ALLOC_SWITCHING)
 enum MARK_BYTE {
     UNMANAGED = 0,
     UNMANAGED_MARKED = 1,
     MANAGED_UNMARKED = 2,
     MANAGED_MARKED = 3,
 };
+# endif
 
 typedef int GC_bool;
 #define TRUE 1
@@ -1745,7 +1747,14 @@ GC_EXTERN struct obj_kind {
 #define UNCOLLECTABLE 2
 #ifdef GC_ATOMIC_UNCOLLECTABLE
 # define AUNCOLLECTABLE 3
+
+#if defined(ALLOC_SWITCHING)
+  // The uncollectable page is never used with alloc switching, so setting it to
+  // a const here should remove branching on it in fast paths.
+# define IS_UNCOLLECTABLE(k) (0)
+#else
 # define IS_UNCOLLECTABLE(k) (((k) & ~1) == UNCOLLECTABLE)
+#endif
 # define GC_N_KINDS_INITIAL_VALUE 4
 #else
 # define IS_UNCOLLECTABLE(k) ((k) == UNCOLLECTABLE)
@@ -1844,9 +1853,11 @@ struct GC_traced_stack_sect_s {
  * relative to the beginning of the block, including unused words)
  */
 
+#if defined(ALLOC_SWITCHING)
 # define set_managed_bit_from_hdr(hhdr,n) ((hhdr)->hb_marks[n] |= (1 << 1))
 # define clear_managed_bit_from_hdr(hhdr,n) ((hhdr)->hb_marks[n] &= ~(1 << 1))
 # define managed_bit_is_set(hhdr,n) (((hhdr)->hb_marks[n] >> 1) & 1)
+#endif
 
 #ifdef USE_MARK_BYTES
 # define mark_bit_from_hdr(hhdr,n) ((hhdr)->hb_marks[n])

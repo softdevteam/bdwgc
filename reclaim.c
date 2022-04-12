@@ -192,7 +192,11 @@ STATIC ptr_t GC_reclaim_clear(struct hblk *hbp, hdr *hhdr, word sz,
     /* go through all words in block */
         while ((word)p <= (word)plim) {
 
+# if defined(ALLOC_SWITCHING)
             if (mark_bit_from_hdr(hhdr, bit_no) != MANAGED_UNMARKED) {
+# else
+            if (mark_bit_from_hdr(hhdr, bit_no)) {
+# endif
                 p += sz;
             } else {
                 /* Object is available - put it on list. */
@@ -200,7 +204,9 @@ STATIC ptr_t GC_reclaim_clear(struct hblk *hbp, hdr *hhdr, word sz,
                 list = p;
 
                 p = (ptr_t)GC_clear_block((word *)p, sz, count);
+# if defined(ALLOC_SWITCHING)
                 clear_managed_bit_from_hdr(hhdr, bit_no);
+# endif
             }
             bit_no += MARK_BIT_OFFSET(sz);
         }
@@ -223,12 +229,18 @@ STATIC ptr_t GC_reclaim_uninit(struct hblk *hbp, hdr *hhdr, word sz,
 
     /* go through all words in block */
         while ((word)p <= (word)plim) {
+# if defined(ALLOC_SWITCHING)
             if (mark_bit_from_hdr(hhdr, bit_no) == MANAGED_UNMARKED) {
+# else
+            if (!mark_bit_from_hdr(hhdr, bit_no)) {
+# endif
                 n_bytes_found += sz;
                 /* object is available - put on list */
                 obj_link(p) = list;
                 list = ((ptr_t)p);
+# if defined(ALLOC_SWITCHING)
                 clear_managed_bit_from_hdr(hhdr, bit_no);
+# endif
             }
             p = (word *)((ptr_t)p + sz);
             bit_no += MARK_BIT_OFFSET(sz);
@@ -255,8 +267,11 @@ STATIC ptr_t GC_reclaim_uninit(struct hblk *hbp, hdr *hhdr, word sz,
     plim = p + HBLKSIZE - sz;
 
     for (; (word)p <= (word)plim; bit_no += MARK_BIT_OFFSET(sz)) {
-
+# if defined(ALLOC_SWITCHING)
         if (mark_bit_from_hdr(hhdr, bit_no) != MANAGED_UNMARKED) {
+# else
+        if (mark_bit_from_hdr(hhdr, bit_no)) {
+# endif
             p += sz;
         } else if ((*disclaim)(p)) {
             set_mark_bit_from_hdr(hhdr, bit_no);
@@ -266,7 +281,9 @@ STATIC ptr_t GC_reclaim_uninit(struct hblk *hbp, hdr *hhdr, word sz,
             obj_link(p) = list;
             list = p;
             p = (ptr_t)GC_clear_block((word *)p, sz, count);
+# if defined(ALLOC_SWITCHING)
             clear_managed_bit_from_hdr(hhdr, bit_no);
+# endif
         }
     }
     return list;
@@ -288,7 +305,11 @@ STATIC void GC_reclaim_check(struct hblk *hbp, hdr *hhdr, word sz)
     for (bit_no = 0; (word)p <= (word)plim;
          p += sz, bit_no += MARK_BIT_OFFSET(sz)) {
 
+# if defined(ALLOC_SWITCHING)
         if (mark_bit_from_hdr(hhdr, bit_no) == MANAGED_UNMARKED) {
+# else
+        if (!mark_bit_from_hdr(hhdr, bit_no)) {
+# endif
             GC_add_leaked(p);
         }
     }
@@ -401,7 +422,11 @@ STATIC void GC_reclaim_block(struct hblk *hbp, word report_if_found)
 #   endif
     if( sz > MAXOBJBYTES ) {  /* 1 big object */
 
+# if defined(ALLOC_SWITCHING)
         if( mark_bit_from_hdr(hhdr, 0) == MANAGED_UNMARKED ) {
+# else
+        if( !mark_bit_from_hdr(hhdr, 0) ) {
+# endif
             if (report_if_found) {
               GC_add_leaked((ptr_t)hbp);
             } else {
@@ -834,7 +859,11 @@ STATIC void GC_do_enumerate_reachable_objects(struct hblk *hbp, word ped)
   }
   /* Go through all words in block. */
   for (bit_no = 0; p <= plim; bit_no += MARK_BIT_OFFSET(sz), p += sz) {
+# if defined(ALLOC_SWITCHING)
     if (mark_bit_from_hdr(hhdr, bit_no) != MANAGED_UNMARKED) {
+# else
+    if (mark_bit_from_hdr(hhdr, bit_no)) {
+# endif
       ((struct enumerate_reachable_s *)ped)->proc(p, sz,
                         ((struct enumerate_reachable_s *)ped)->client_data);
     }

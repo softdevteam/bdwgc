@@ -2955,7 +2955,7 @@ EXTERN_C_BEGIN
 #endif
 
 #ifndef CLEAR_DOUBLE
-# define CLEAR_DOUBLE(x) (((word*)(x))[0] = 0, ((word*)(x))[1] = 0);
+# define CLEAR_DOUBLE(x) (((word*)(x))[0] = 0, ((word*)(x))[1] = 0)
 #endif
 
 #if defined(GC_LINUX_THREADS) && defined(REDIRECT_MALLOC) \

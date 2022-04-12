@@ -156,6 +156,9 @@ fi
 AC_ARG_ENABLE(cplusplus,
     [AS_HELP_STRING([--enable-cplusplus], [install C++ support])])
 
+AH_TEMPLATE([ALLOC_SWITCHING], [Define to enable dynamic switching between collectable
+             and uncollectable allocations.])
+
 dnl Features which may be selected in the following thread-detection switch.
 AH_TEMPLATE([PARALLEL_MARK], [Define to enable parallel marking.])
 AH_TEMPLATE([THREAD_LOCAL_ALLOC],

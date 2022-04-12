@@ -123,6 +123,9 @@ GC_INNER void GC_clear_hdr_marks(hdr *hhdr)
     last_bit = FINAL_MARK_BIT((size_t)hhdr->hb_sz);
 # endif
 
+# if !defined(ALLOC_SWITCHING)
+    BZERO(hhdr -> hb_marks, sizeof(hhdr->hb_marks));
+# else
     unsigned i;
     size_t sz = (size_t)hhdr->hb_sz;
     unsigned n_marks = (unsigned)FINAL_MARK_BIT(sz);
@@ -130,6 +133,7 @@ GC_INNER void GC_clear_hdr_marks(hdr *hhdr)
     for (i = 0; i <= n_marks; i += (unsigned)MARK_BIT_OFFSET(sz)) {
         hhdr -> hb_marks[i] &= ~1;
     }
+# endif
     set_mark_bit_from_hdr(hhdr, last_bit);
     hhdr -> hb_n_marks = 0;
 }
@@ -206,6 +210,7 @@ GC_API void GC_CALL GC_clear_mark_bit(const void *p)
     }
 }
 
+# if defined(ALLOC_SWITCHING)
 /* Allow the GC to manage this allocation. I.e. sweep it when unreachable. */
 GC_API void GC_CALL GC_set_managed(const void *p)
 {
@@ -230,6 +235,8 @@ GC_API void GC_CALL GC_set_unmanaged(const void *p)
     clear_managed_bit_from_hdr(hhdr, bit_no);
 }
 
+# endif
+
 GC_API int GC_CALL GC_is_marked(const void *p)
 {
     struct hblk *h = HBLKPTR(p);
@@ -238,6 +245,8 @@ GC_API int GC_CALL GC_is_marked(const void *p)
 
     return (int) (mark_bit_is_set(hhdr, bit_no));
 }
+
+# if defined(ALLOC_SWITCHING)
 
 GC_API int GC_CALL GC_is_managed(const void *p)
 {
@@ -265,6 +274,8 @@ GC_API int GC_CALL GC_is_managed_unmarked(const void *p)
 
     return (int) ((hhdr)->hb_marks[bit_no] == MANAGED_UNMARKED);
 }
+
+# endif
 
 /* Clear mark bits in all allocated heap blocks.  This invalidates the  */
 /* marker invariant, and sets GC_mark_state to reflect this.  (This     */

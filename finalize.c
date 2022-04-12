@@ -998,10 +998,18 @@ GC_INNER void GC_finalize(void)
            curr_fo != NULL; curr_fo = fo_next(curr_fo)) {
         GC_ASSERT(GC_size(curr_fo) >= sizeof(struct finalizable_object));
         real_ptr = (ptr_t)GC_REVEAL_POINTER(curr_fo->fo_hidden_base);
+# if defined(ALLOC_SWITCHING)
         if (GC_is_managed_unmarked(real_ptr)) {
+# else
+        if (!GC_is_marked(real_ptr)) {
+# endif
             GC_MARKED_FOR_FINALIZATION(real_ptr);
             GC_MARK_FO(real_ptr, curr_fo -> fo_mark_proc);
+# if defined(ALLOC_SWITCHING)
             if (GC_is_managed_marked(real_ptr)) {
+# else
+            if (GC_is_marked(real_ptr)) {
+# endif
                 WARN("Finalization cycle involving %p\n", real_ptr);
             }
         }
@@ -1015,7 +1023,11 @@ GC_INNER void GC_finalize(void)
       prev_fo = 0;
       while (curr_fo != 0) {
         real_ptr = (ptr_t)GC_REVEAL_POINTER(curr_fo->fo_hidden_base);
+# if defined(ALLOC_SWITCHING)
         if (GC_is_managed_unmarked(real_ptr)) {
+# else
+        if (!GC_is_marked(real_ptr)) {
+# endif
             if (!GC_java_finalization) {
               GC_set_mark_bit(real_ptr);
             }
