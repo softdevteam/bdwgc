@@ -166,7 +166,7 @@ GC_finalizer_notifier_proc GC_finalizer_notifier =
 #endif
 
 #ifndef GC_LARGE_ALLOC_WARN_INTERVAL
-# define GC_LARGE_ALLOC_WARN_INTERVAL 5
+# define GC_LARGE_ALLOC_WARN_INTERVAL 9999
 #endif
 GC_INNER long GC_large_alloc_warn_interval = GC_LARGE_ALLOC_WARN_INTERVAL;
                         /* Interval between unsuppressed warnings.      */
