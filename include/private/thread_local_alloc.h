@@ -70,7 +70,7 @@ EXTERN_C_BEGIN
       /* To avoid "R_AARCH64_ABS64 used with TLS symbol" linker warnings. */
 #     define USE_PTHREAD_SPECIFIC
 #   else
-#     define USE_COMPILER_TLS
+#     define USE_CUSTOM_SPECIFIC
 #   endif
 
 # elif (defined(FREEBSD) \
