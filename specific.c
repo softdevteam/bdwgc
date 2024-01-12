@@ -88,6 +88,24 @@ GC_INNER int GC_setspecific(tsd * key, void * value)
     return 0;
 }
 
+GC_INNER void * GC_getspecific(tsd * key)
+{
+    word qtid = quick_thread_id();
+    tse * volatile * entry_ptr = &(key -> cache[CACHE_HASH(qtid)]);
+    tse * entry = *entry_ptr;   /* Must be loaded only once.    */
+
+    GC_ASSERT(qtid != INVALID_QTID);
+    if (EXPECT(entry -> qtid == qtid, TRUE)) {
+      GC_ASSERT(entry -> thread == pthread_self());
+      return TS_REVEAL_PTR(entry -> value);
+    }
+    return GC_slow_getspecific(key, qtid, entry_ptr);
+}
+
+GC_INNER void GC_remove_specific(tsd * key) {
+    return GC_remove_specific_after_fork(key, pthread_self());
+}
+
 /* Remove thread-specific data for a given thread.  This function is    */
 /* called at fork from the child process for all threads except for the */
 /* survived one.  GC_remove_specific() should be called on thread exit. */
