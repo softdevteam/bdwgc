@@ -370,6 +370,7 @@ STATIC void GC_suspend_handler_inner(ptr_t dummy, void *context)
   }
   crtn = me -> crtn;
   GC_store_stack_ptr(crtn);
+  crtn -> tls_rootset = GC_tls_rootset();
 # ifdef E2K
     GC_ASSERT(NULL == crtn -> backing_store_end);
     GET_PROCEDURE_STACK_LOCAL(&bs_lo, &stack_size);
@@ -856,6 +857,8 @@ GC_INNER void GC_push_all_stacks(void)
             GC_log_printf("Stack for thread %p is [%p,%p)\n",
                           (void *)(p -> id), (void *)lo, (void *)hi);
 #         endif
+            GC_log_printf("TLS rootset for thread %p is %p\n",
+                          (void *)(p -> id), crtn -> tls_rootset);
 #       endif
         if (NULL == lo) ABORT("GC_push_all_stacks: sp not set!");
         if (crtn -> altstack != NULL && (word)(crtn -> altstack) <= (word)lo
@@ -872,6 +875,7 @@ GC_INNER void GC_push_all_stacks(void)
             GC_sp_corrector((void **)&lo, (void *)(p -> id));
 #       endif
         GC_push_all_stack_sections(lo, hi, traced_stack_sect);
+        GC_mark_and_push_stack(crtn->tls_rootset);
 #       ifdef STACK_GROWS_UP
           total_size += lo - hi;
 #       else

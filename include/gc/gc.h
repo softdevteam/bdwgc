@@ -2309,4 +2309,7 @@ GC_API void GC_CALL GC_win32_free_heap(void);
   } /* extern "C" */
 #endif
 
+GC_API void GC_init_tls_rootset(void * rootset);
+GC_API void * GC_tls_rootset();
+
 #endif /* GC_H */
