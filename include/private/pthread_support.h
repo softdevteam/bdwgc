@@ -112,6 +112,7 @@ typedef struct GC_StackContext_Rep {
                                 /* GC_call_with_gc_active() of this     */
                                 /* stack (thread); may be NULL.         */
 
+  ptr_t tls_rootset;
 } *GC_stack_context_t;
 
 #ifdef GC_WIN32_THREADS
