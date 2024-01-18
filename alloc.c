@@ -1836,3 +1836,15 @@ GC_INNER ptr_t GC_allocobj(size_t gran, int kind)
 
     return (ptr_t)(*flh);
 }
+
+STATIC __thread void* tls_rootset = NULL;
+
+GC_INNER void GC_init_tls_rootset(void * rootset)
+{
+    tls_rootset = rootset;
+}
+
+GC_INNER void* GC_tls_rootset()
+{
+    return tls_rootset;
+}
