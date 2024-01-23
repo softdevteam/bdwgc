@@ -200,6 +200,12 @@ STATIC ptr_t GC_reclaim_clear(struct hblk *hbp, hdr *hhdr, word sz,
                 obj_link(p) = list;
                 list = p;
 
+                // If Alloy enqueues an object for finalization, then it must
+                // be reachable until after the object is finalized. If it
+                // isn't, something has gone very wrong and we will end up
+                // calling the finalizer on invalid memory.
+                GC_ASSERT(!finalizer_bit_is_set(hhdr, bit_no));
+
                 p = (ptr_t)GC_clear_block((word *)p, sz, pcount);
             }
             bit_no += MARK_BIT_OFFSET(sz);
@@ -396,6 +402,7 @@ STATIC void GC_CALLBACK GC_reclaim_block(struct hblk *hbp,
 #   endif
     if (sz > MAXOBJBYTES) { /* 1 big object */
         if (!mark_bit_from_hdr(hhdr, 0)) {
+            GC_ASSERT(!finalizer_bit_is_set(hhdr, 0));
             if (report_if_found) {
               GC_add_leaked((ptr_t)hbp);
             } else {

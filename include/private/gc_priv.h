@@ -1874,9 +1874,13 @@ struct GC_traced_stack_sect_s {
  */
 
 #ifdef USE_MARK_BYTES
-# define mark_bit_from_hdr(hhdr,n) ((hhdr)->hb_marks[n])
-# define set_mark_bit_from_hdr(hhdr,n) ((hhdr)->hb_marks[n] = 1)
-# define clear_mark_bit_from_hdr(hhdr,n) ((hhdr)->hb_marks[n] = 0)
+# define mark_bit_from_hdr(hhdr,n) ((hhdr)->hb_marks[n] & 0x1)
+# define set_mark_bit_from_hdr(hhdr,n) ((hhdr)->hb_marks[n] |= 1)
+# define clear_mark_bit_from_hdr(hhdr,n) ((hhdr)->hb_marks[n] &= ~1)
+
+# define set_finalizer_bit_from_hdr(hhdr,n) ((hhdr)->hb_marks[n] |= (1 << 1))
+# define clear_finalizer_bit_from_hdr(hhdr,n) ((hhdr)->hb_marks[n] &= ~(1 << 1))
+# define finalizer_bit_is_set(hhdr,n) (((hhdr)->hb_marks[n] >> 1) & 1)
 #else
 /* Set mark bit correctly, even if mark bits may be concurrently        */
 /* accessed.                                                            */
