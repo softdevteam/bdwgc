@@ -588,6 +588,8 @@ static void free_internal(void *p, hdr *hhdr)
   size_t ngranules = BYTES_TO_GRANULES(sz); /* size in granules */
   int k = hhdr -> hb_obj_kind;
 
+  GC_ASSERT(!GC_is_finalizer_queued_bit_set(p));
+
   GC_bytes_freed += sz;
   if (IS_UNCOLLECTABLE(k)) GC_non_gc_bytes -= sz;
   if (EXPECT(ngranules <= MAXOBJGRANULES, TRUE)) {

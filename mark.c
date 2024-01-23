@@ -287,6 +287,37 @@ GC_INNER void GC_clear_marks(void)
     GC_scan_ptr = NULL;
 }
 
+GC_API void GC_CALL GC_set_finalizer_queued_bit(const void *p)
+{
+    struct hblk *h = HBLKPTR(p);
+    hdr * hhdr = HDR(h);
+    word bit_no = MARK_BIT_NO((word)p - (word)h, hhdr -> hb_sz);
+
+    if (!finalizer_bit_is_set(hhdr, bit_no)) {
+      set_finalizer_bit_from_hdr(hhdr, bit_no);
+    }
+}
+
+GC_API void GC_CALL GC_clear_finalizer_queued_bit(const void *p)
+{
+    struct hblk *h = HBLKPTR(p);
+    hdr * hhdr = HDR(h);
+    word bit_no = MARK_BIT_NO((word)p - (word)h, hhdr -> hb_sz);
+
+    if (finalizer_bit_is_set(hhdr, bit_no)) {
+      clear_finalizer_bit_from_hdr(hhdr, bit_no);
+    }
+}
+
+GC_API int GC_CALL GC_is_finalizer_queued_bit_set(const void *p)
+{
+    struct hblk *h = HBLKPTR(p);
+    hdr * hhdr = HDR(h);
+    word bit_no = MARK_BIT_NO((word)p - (word)h, hhdr -> hb_sz);
+
+    return (int)finalizer_bit_is_set(hhdr, bit_no); /* 0 or 1 */
+}
+
 /* Initiate a garbage collection.  Initiates a full collection if the   */
 /* mark state is invalid.                                               */
 GC_INNER void GC_initiate_gc(void)

@@ -362,6 +362,11 @@ GC_API int GC_CALL GC_is_marked(const void *) GC_ATTR_NONNULL(1);
 GC_API void GC_CALL GC_clear_mark_bit(const void *) GC_ATTR_NONNULL(1);
 GC_API void GC_CALL GC_set_mark_bit(const void *) GC_ATTR_NONNULL(1);
 
+/* Finalizer queue bit manipulation.                                    */
+GC_API int GC_CALL GC_is_finalizer_queued_bit_set(const void *) GC_ATTR_NONNULL(1);
+GC_API void GC_CALL GC_set_finalizer_queued_bit(const void *) GC_ATTR_NONNULL(1);
+GC_API void GC_CALL GC_clear_finalizer_queued_bit(const void *) GC_ATTR_NONNULL(1);
+
 /* Push everything in the given range onto the mark stack.              */
 /* (GC_push_conditional pushes either all or only dirty pages depending */
 /* on the third argument.)  GC_push_all_eager also ensures that stack   */
