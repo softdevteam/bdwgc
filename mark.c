@@ -287,7 +287,7 @@ GC_INNER void GC_clear_marks(void)
     GC_scan_ptr = NULL;
 }
 
-GC_API void GC_CALL GC_set_finalizer_bit(const void *p)
+GC_API void GC_CALL GC_set_finalizer_queued_bit(const void *p)
 {
     struct hblk *h = HBLKPTR(p);
     hdr * hhdr = HDR(h);
@@ -298,7 +298,7 @@ GC_API void GC_CALL GC_set_finalizer_bit(const void *p)
     }
 }
 
-GC_API void GC_CALL GC_clear_finalizer_bit(const void *p)
+GC_API void GC_CALL GC_clear_finalizer_queued_bit(const void *p)
 {
     struct hblk *h = HBLKPTR(p);
     hdr * hhdr = HDR(h);
@@ -309,7 +309,7 @@ GC_API void GC_CALL GC_clear_finalizer_bit(const void *p)
     }
 }
 
-GC_API int GC_CALL GC_is_finalizer_bit_set(const void *p)
+GC_API int GC_CALL GC_is_finalizer_queued_bit_set(const void *p)
 {
     struct hblk *h = HBLKPTR(p);
     hdr * hhdr = HDR(h);
