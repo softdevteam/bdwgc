@@ -49,7 +49,14 @@ STATIC int GC_CALLBACK GC_finalized_disclaim(void *obj)
         GC_ASSERT(!GC_find_leak);
         (*fc->proc)((word *)obj + 1, fc->cd);
     }
+#ifdef DISCLAIM_MARK_CHILDREN
+    /* Prevent the objects reachable from the disclaimed object from    */
+    /* being reclaimed immediately by marking them as live. Useful if   */
+    /* the disclaim function queues objects to be finalised later.      */
+    return 1;
+#else
     return 0;
+#endif
 }
 
 STATIC void GC_register_disclaim_proc_inner(unsigned kind,
