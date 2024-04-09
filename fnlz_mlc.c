@@ -130,4 +130,67 @@ GC_API GC_ATTR_MALLOC void * GC_CALL GC_finalized_malloc(size_t lb,
     return (word *)op + 1;
 }
 
+#ifdef BUFFERED_FINALIZATION
+
+STATIC __thread void** finalizer_buffer_start;
+STATIC __thread void** finalizer_buffer_next;
+STATIC __thread void** finalizer_buffer_end;
+
+STATIC GC_push_to_fin_q_proc push_proc;
+
+void GC_new_buffer() {
+    GC_ASSERT(I_HOLD_LOCK());
+    finalizer_buffer_start = (void**) GC_os_get_mem(GC_page_size);
+    finalizer_buffer_next = finalizer_buffer_start;
+    if (NULL == finalizer_buffer_next)
+      ABORT("Insufficient memory for finalization queue.");
+
+    finalizer_buffer_end = (void*)finalizer_buffer_start + GC_page_size;
+}
+
+STATIC int GC_CALLBACK GC_push_to_fin_q(void *obj)
+{
+    if (!GC_is_finalizer_queued_bit_set(obj))
+        return 0;
+
+    if (finalizer_buffer_next == finalizer_buffer_end) {
+        (push_proc)(finalizer_buffer_start);
+        GC_new_buffer();
+    }
+
+    *finalizer_buffer_next = obj;
+    finalizer_buffer_next++;
+    return 1;
+}
+
+
+GC_API GC_ATTR_MALLOC void * GC_CALL GC_buffered_finalize_malloc(size_t lb)
+{
+    void *op;
+
+    GC_ASSERT(GC_fin_q_kind != 0);
+    op = GC_malloc_kind(lb, (int)GC_fin_q_kind);
+    if (EXPECT(NULL == op, FALSE))
+        return NULL;
+    GC_set_finalizer_queued_bit(op);
+    return (word *)op;
+}
+
+
+GC_API void GC_CALL GC_init_buffered_finalization(GC_push_to_fin_q_proc p)
+{
+    GC_init();  /* In case it's not already done.       */
+    LOCK();
+    GC_new_buffer();
+    GC_fin_q_kind = GC_new_kind_inner(GC_new_free_list_inner(),
+                                          GC_DS_LENGTH, TRUE, TRUE);
+    GC_ASSERT(GC_fin_q_kind != 0);
+
+    push_proc = p;
+    GC_register_disclaim_proc_inner(GC_fin_q_kind, GC_push_to_fin_q, TRUE);
+    UNLOCK();
+}
+
+#endif /* BUFFERED_FINALIZATION */
+
 #endif /* ENABLE_DISCLAIM */

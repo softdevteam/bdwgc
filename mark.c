@@ -183,9 +183,19 @@ GC_INNER void GC_clear_hdr_marks(hdr *hhdr)
     last_bit = FINAL_MARK_BIT((size_t)hhdr->hb_sz);
 # endif
 
-    BZERO(hhdr -> hb_marks, sizeof(hhdr->hb_marks));
+# ifdef BUFFERED_FINALIZATION
+    unsigned i;
+    size_t sz = (size_t)hhdr->hb_sz;
+    unsigned n_marks = (unsigned)FINAL_MARK_BIT(sz);
+
+    for (i = 0; i <= n_marks; i += (unsigned)MARK_BIT_OFFSET(sz)) {
+        hhdr -> hb_marks[i] &= ~1;
+    }
     set_mark_bit_from_hdr(hhdr, last_bit);
     hhdr -> hb_n_marks = 0;
+#else
+    BZERO(hhdr -> hb_marks, sizeof(hhdr->hb_marks));
+#endif
 }
 
 /* Set all mark bits in the header.  Used for uncollectible blocks. */

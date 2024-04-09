@@ -68,6 +68,39 @@ GC_API GC_ATTR_MALLOC GC_ATTR_ALLOC_SIZE(1) void * GC_CALL
         GC_finalized_malloc(size_t /* size */,
             const struct GC_finalizer_closure * /* fc */) GC_ATTR_NONNULL(2);
 
+
+#ifdef BUFFERED_FINALIZATION
+
+typedef int (GC_CALLBACK * GC_push_to_fin_q_proc)(void ** /* buffer */);
+
+/* This API is defined only if the library has been suitably compiled   */
+/* (i.e. with ENABLE_DISCLAIM defined).                                 */
+
+/* Prepare the object kind used by GC_buffered_finalize_malloc.  Call   */
+/* it from your initialization code or, at least, at some point before  */
+/* finalized allocations.  The function is thread-safe.                 */
+GC_API void GC_CALL GC_init_buffered_finalization(GC_push_to_fin_q_proc);
+
+/* Allocate an object which is to be finalized.                         */
+/* This function assumes the first word in the allocated block will     */
+/* store the function pointer to the finalizer.                         */
+/* Allocations of this kind are added to a buffer which, when full, is  */
+/* passed to a user supplied closure to invoke their finalizers. It is  */
+/* the responsibility of the user to ensure these objects are finalized.*/
+/* This uses a dedicated object kind with a disclaim procedure, and is  */
+/* more efficient than GC_register_finalizer and friends.               */
+/* GC_init_buffered_finalization must be called before using this.      */
+/* The collector will not reclaim the object during the GC cycle where  */
+/* it was considered unreachable. In addition, objects reachable from   */
+/* the finalizer will be protected from collection until the finalizer  */
+/* has been run.                                                        */
+/* The disclaim procedure is not invoked in the leak-finding mode.      */
+/* There is no debugging version of this allocation API.                */
+GC_API GC_ATTR_MALLOC GC_ATTR_ALLOC_SIZE(1) void * GC_CALL
+        GC_buffered_finalize_malloc(size_t);
+
+#endif /* BUFFERED_FINALIZATION */
+
 #ifdef __cplusplus
   } /* extern "C" */
 #endif
