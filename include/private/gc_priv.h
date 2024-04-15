@@ -1557,6 +1557,8 @@ struct _GC_arrays {
 # ifdef ENABLE_DISCLAIM
 #   define GC_finalized_kind GC_arrays._finalized_kind
     unsigned _finalized_kind;
+#   define GC_fin_q_kind GC_arrays._fin_q_kind
+    unsigned _fin_q_kind;
 # endif
 # define n_root_sets GC_arrays._n_root_sets
 # define GC_excl_table_entries GC_arrays._excl_table_entries

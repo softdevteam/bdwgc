@@ -130,4 +130,128 @@ GC_API GC_ATTR_MALLOC void * GC_CALL GC_finalized_malloc(size_t lb,
     return (word *)op + 1;
 }
 
+# ifdef BUFFERED_FINALIZATION
+
+STATIC GC_finalization_buffer_hdr* start_buffer;
+STATIC struct GC_current_buffer cur_buffer;
+
+GC_finalization_buffer_hdr* GC_new_buffer() {
+    GC_ASSERT(I_HOLD_LOCK());
+    GC_disable();
+    void* ptr = GC_os_get_mem(GC_page_size);
+    GC_enable();
+    if (NULL == ptr)
+      ABORT("Insufficient memory for finalization buffer.");
+    GC_add_roots_inner(ptr, ptr + GC_page_size, FALSE);
+    return ptr;
+}
+
+void GC_delete_buffer(GC_finalization_buffer_hdr* buffer) {
+    GC_ASSERT(I_HOLD_LOCK());
+    GC_remove_roots((void*) buffer, (void*) buffer + GC_page_size);
+    GC_unmap((void*)buffer, GC_page_size);
+
+}
+
+STATIC int GC_CALLBACK GC_push_object_to_fin_buffer(void *obj)
+{
+    GC_ASSERT(I_HOLD_LOCK());
+
+    word finalizer_word = *(word *)obj;
+    if ((finalizer_word & FINALIZER_CLOSURE_FLAG) == 0) {
+        return 0;
+    }
+
+    if (start_buffer == NULL) {
+        /* This can happen for two reasons:
+         *   1) This is first time a finalizable object is unreachable and no
+         *   finalization buffers have been created yet.
+         *
+         *   2) The buffer(s) have already passed to a finalization thread
+         *   which is processing them. We must start again. */
+        start_buffer = GC_new_buffer();
+        cur_buffer.hdr = start_buffer;
+        cur_buffer.cursor = (void**) (start_buffer + 1);
+    }
+
+    void** last = (void**) ((void *)cur_buffer.hdr + GC_page_size);
+    if (cur_buffer.cursor == last) {
+        GC_finalization_buffer_hdr* next = GC_new_buffer();
+        cur_buffer.hdr->next = next;
+        cur_buffer.hdr = next;
+        cur_buffer.cursor = (void**) (next + 1);
+    }
+
+    *cur_buffer.cursor = obj;
+    cur_buffer.cursor++;
+
+    return 1;
+}
+
+
+GC_API GC_ATTR_MALLOC void * GC_CALL GC_buffered_finalize_malloc(size_t lb)
+{
+    void *op;
+
+    GC_ASSERT(GC_fin_q_kind != 0);
+    op = GC_malloc_kind(lb, (int)GC_fin_q_kind);
+    if (EXPECT(NULL == op, FALSE))
+        return NULL;
+    return (word *)op;
+}
+
+
+GC_API void GC_CALL GC_init_buffered_finalization(void)
+{
+    LOCK();
+    GC_new_buffer();
+    GC_fin_q_kind = GC_new_kind_inner(GC_new_free_list_inner(),
+                                          GC_DS_LENGTH, TRUE, TRUE);
+    GC_ASSERT(GC_fin_q_kind != 0);
+
+    GC_register_disclaim_proc_inner(GC_fin_q_kind, GC_push_object_to_fin_buffer, TRUE);
+    UNLOCK();
+}
+
+void GC_finalize_buffer(GC_finalization_buffer_hdr* buffer) {
+    void** cursor = (void**) (buffer + 1);
+    void** last = (void**) ((void *)buffer + GC_page_size);
+    while (cursor != last)
+    {
+        if (*cursor == NULL) {
+            break;
+        }
+        void* obj = *cursor;
+        word finalizer_word = (*(word *)obj) & ~(word)FINALIZER_CLOSURE_FLAG;
+        GC_disclaim_proc finalizer = (GC_disclaim_proc) finalizer_word;
+        (finalizer)(obj);
+        cursor++;
+    }
+}
+
+GC_API void GC_CALL GC_finalize_objects(void) {
+    /* This is safe to do without locking because this global is only ever
+     * mutated from within a collection where all mutator threads (including
+     * this finalisation thread) are paused. It is not possible for them to race.
+     *
+     * In addition, a memory barrier synchronises threads at the end of a
+     * collection, so the finalisation thread will always load the up-to-date
+     * version of this global. */
+    GC_disable();
+    GC_finalization_buffer_hdr* buffer = start_buffer;
+    start_buffer = NULL;
+    GC_enable();
+
+    while(buffer != NULL)
+    {
+        GC_finalize_buffer(buffer);
+        GC_finalization_buffer_hdr* next = buffer->next;
+
+        GC_delete_buffer(buffer);
+        buffer = next;
+    }
+}
+
+# endif
+
 #endif /* ENABLE_DISCLAIM */
