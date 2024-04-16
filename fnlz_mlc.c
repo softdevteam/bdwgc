@@ -22,8 +22,10 @@
 #if defined(KEEP_BACK_PTRS) || defined(MAKE_BACK_GRAPH)
   /* The first bit is already used for a debug purpose. */
 # define FINALIZER_CLOSURE_FLAG 0x2
+# define HAS_BEEN_FINALIZED_FLAG 0x3
 #else
 # define FINALIZER_CLOSURE_FLAG 0x1
+# define HAS_BEEN_FINALIZED_FLAG 0x2
 #endif
 
 STATIC int GC_CALLBACK GC_finalized_disclaim(void *obj)
@@ -135,11 +137,17 @@ GC_API GC_ATTR_MALLOC void * GC_CALL GC_finalized_malloc(size_t lb,
 STATIC GC_finalization_buffer_hdr* start_buffer;
 STATIC struct GC_current_buffer cur_buffer;
 
+static void* init_finalize_thread(void *arg)
+{
+    while (1) {
+        GC_finalize_objects();
+    }
+    return arg;
+}
+
 GC_finalization_buffer_hdr* GC_new_buffer() {
     GC_ASSERT(I_HOLD_LOCK());
-    GC_disable();
     void* ptr = GC_os_get_mem(GC_page_size);
-    GC_enable();
     if (NULL == ptr)
       ABORT("Insufficient memory for finalization buffer.");
     GC_add_roots_inner(ptr, ptr + GC_page_size, FALSE);
@@ -147,7 +155,6 @@ GC_finalization_buffer_hdr* GC_new_buffer() {
 }
 
 void GC_delete_buffer(GC_finalization_buffer_hdr* buffer) {
-    GC_ASSERT(I_HOLD_LOCK());
     GC_remove_roots((void*) buffer, (void*) buffer + GC_page_size);
     GC_unmap((void*)buffer, GC_page_size);
 
@@ -159,6 +166,13 @@ STATIC int GC_CALLBACK GC_push_object_to_fin_buffer(void *obj)
 
     word finalizer_word = *(word *)obj;
     if ((finalizer_word & FINALIZER_CLOSURE_FLAG) == 0) {
+        return 0;
+    }
+
+    if (finalizer_word & HAS_BEEN_FINALIZED_FLAG) {
+        /* The object has already been finalized. Return 0 ensures it is
+         * immediately reclaimed.
+         */
         return 0;
     }
 
@@ -211,6 +225,8 @@ GC_API void GC_CALL GC_init_buffered_finalization(void)
 
     GC_register_disclaim_proc_inner(GC_fin_q_kind, GC_push_object_to_fin_buffer, TRUE);
     UNLOCK();
+    pthread_t t;
+    pthread_create(&t, NULL, init_finalize_thread, NULL /* arg */);
 }
 
 void GC_finalize_buffer(GC_finalization_buffer_hdr* buffer) {
@@ -225,6 +241,8 @@ void GC_finalize_buffer(GC_finalization_buffer_hdr* buffer) {
         word finalizer_word = (*(word *)obj) & ~(word)FINALIZER_CLOSURE_FLAG;
         GC_disclaim_proc finalizer = (GC_disclaim_proc) finalizer_word;
         (finalizer)(obj);
+        /* Prevent the object from being re-added to the finalization queue */
+        *(word *)obj = finalizer_word | HAS_BEEN_FINALIZED_FLAG;
         cursor++;
     }
 }
