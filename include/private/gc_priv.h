@@ -337,6 +337,8 @@ struct GC_current_buffer {
     void** cursor;
 };
 
+GC_INNER void GC_maybe_spawn_finalize_thread();
+
 #endif
 
 /*********************************/
@@ -383,7 +385,11 @@ struct GC_current_buffer {
 EXTERN_C_BEGIN
 
 #ifndef GC_NO_FINALIZATION
+#ifdef BUFFERED_FINALIZATION
+# define GC_INVOKE_FINALIZERS() GC_maybe_spawn_finalize_thread()
+#else
 # define GC_INVOKE_FINALIZERS() GC_notify_or_invoke_finalizers()
+#endif
   GC_INNER void GC_notify_or_invoke_finalizers(void);
                         /* If GC_finalize_on_demand is not set, invoke  */
                         /* eligible finalizers. Otherwise:              */
@@ -1579,6 +1585,8 @@ struct _GC_arrays {
     GC_finalization_buffer_hdr* _fin_buffer_head;
 #   define GC_finalizer_buffer_current GC_arrays._fin_buffer_current
     struct GC_current_buffer _fin_buffer_current;
+#   define GC_finalizer_thread_exists GC_arrays._fin_thread_exists
+    int _fin_thread_exists;
 # endif
 # endif
 # define n_root_sets GC_arrays._n_root_sets
