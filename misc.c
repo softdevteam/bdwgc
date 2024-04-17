@@ -2069,9 +2069,11 @@ GC_API void GC_CALL GC_enable(void)
     LOCK();
     GC_ASSERT(GC_dont_gc != 0); /* ensure no counter underflow */
     GC_dont_gc--;
+#ifndef BUFFERED_FINALIZATION
     if (!GC_dont_gc && GC_heapsize > GC_heapsize_on_gc_disable)
       WARN("Heap grown by %" WARN_PRIuPTR " KiB while GC was disabled\n",
            (GC_heapsize - GC_heapsize_on_gc_disable) >> 10);
+#endif
     UNLOCK();
 }
 
