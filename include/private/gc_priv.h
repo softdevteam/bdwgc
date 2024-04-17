@@ -324,6 +324,23 @@ typedef unsigned int unsigned32;
 
 #include "gc/gc_inline.h"
 
+#ifdef BUFFERED_FINALIZATION
+
+typedef struct GC_finalization_buffer_hdr GC_finalization_buffer_hdr;
+
+struct GC_finalization_buffer_hdr {
+    GC_finalization_buffer_hdr* next;
+};
+
+struct GC_current_buffer {
+    GC_finalization_buffer_hdr* hdr;
+    void** cursor;
+};
+
+GC_INNER void GC_maybe_spawn_finalize_thread();
+
+#endif
+
 /*********************************/
 /*                               */
 /* Definitions for conservative  */
@@ -368,7 +385,11 @@ typedef unsigned int unsigned32;
 EXTERN_C_BEGIN
 
 #ifndef GC_NO_FINALIZATION
+#ifdef BUFFERED_FINALIZATION
+# define GC_INVOKE_FINALIZERS() GC_maybe_spawn_finalize_thread()
+#else
 # define GC_INVOKE_FINALIZERS() GC_notify_or_invoke_finalizers()
+#endif
   GC_INNER void GC_notify_or_invoke_finalizers(void);
                         /* If GC_finalize_on_demand is not set, invoke  */
                         /* eligible finalizers. Otherwise:              */
@@ -1557,8 +1578,16 @@ struct _GC_arrays {
 # ifdef ENABLE_DISCLAIM
 #   define GC_finalized_kind GC_arrays._finalized_kind
     unsigned _finalized_kind;
+# ifdef BUFFERED_FINALIZATION
 #   define GC_fin_q_kind GC_arrays._fin_q_kind
     unsigned _fin_q_kind;
+#   define GC_finalizer_buffer_head GC_arrays._fin_buffer_head
+    GC_finalization_buffer_hdr* _fin_buffer_head;
+#   define GC_finalizer_buffer_current GC_arrays._fin_buffer_current
+    struct GC_current_buffer _fin_buffer_current;
+#   define GC_finalizer_thread_exists GC_arrays._fin_thread_exists
+    int _fin_thread_exists;
+# endif
 # endif
 # define n_root_sets GC_arrays._n_root_sets
 # define GC_excl_table_entries GC_arrays._excl_table_entries
