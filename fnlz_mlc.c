@@ -211,6 +211,52 @@ GC_API GC_ATTR_MALLOC void * GC_CALL GC_buffered_finalize_malloc(size_t lb)
     return (word *)op;
 }
 
+GC_API GC_ATTR_MALLOC void * GC_CALL GC_buffered_finalize_memalign(size_t align, size_t lb)
+{
+    size_t offset;
+    ptr_t result;
+    size_t align_m1 = align - 1;
+
+    /* Check the alignment argument.    */
+    if (EXPECT(0 == align || (align & align_m1) != 0, FALSE)) return NULL;
+    if (align <= GC_GRANULE_BYTES) return GC_buffered_finalize_malloc(lb);
+
+    if (align >= HBLKSIZE/2 || lb >= HBLKSIZE/2) {
+      return GC_clear_stack(GC_generic_malloc_aligned(lb, GC_fin_q_kind,
+                                        0 /* flags */, align_m1));
+    }
+
+    result = (ptr_t)GC_buffered_finalize_malloc(SIZET_SAT_ADD(lb, align_m1));
+    offset = (size_t)(word)result & align_m1;
+    if (offset != 0) {
+        offset = align - offset;
+        if (!GC_all_interior_pointers) {
+            GC_STATIC_ASSERT(VALID_OFFSET_SZ <= HBLKSIZE);
+            GC_ASSERT(offset < VALID_OFFSET_SZ);
+            GC_register_displacement(offset);
+        }
+        result += offset;
+    }
+    GC_ASSERT(((word)result & align_m1) == 0);
+    return result;
+}
+
+GC_API int GC_CALL GC_buffered_finalize_posix_memalign(void **memptr, size_t align, size_t lb)
+{
+  size_t align_minus_one = align - 1; /* to workaround a cppcheck warning */
+
+  /* Check alignment properly.  */
+  if (EXPECT(align < sizeof(void *)
+             || (align_minus_one & align) != 0, FALSE)) {
+      return EINVAL;
+  }
+
+  if ((*memptr = GC_buffered_finalize_memalign(align, lb)) == NULL) {
+      return ENOMEM;
+  }
+  return 0;
+}
+
 
 GC_API void GC_CALL GC_init_buffered_finalization(void)
 {
