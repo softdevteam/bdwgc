@@ -95,6 +95,12 @@ GC_API void GC_CALL GC_init_buffered_finalization(void);
 GC_API GC_ATTR_MALLOC GC_ATTR_ALLOC_SIZE(1) void * GC_CALL
         GC_buffered_finalize_malloc(size_t);
 
+GC_API GC_ATTR_MALLOC GC_ATTR_ALLOC_SIZE(2) void * GC_CALL
+        GC_buffered_finalize_memalign(size_t /* align */, size_t /* lb */);
+
+GC_API int GC_CALL GC_buffered_finalize_posix_memalign(void ** /* memptr */, size_t /* align */,
+                        size_t /* lb */) GC_ATTR_NONNULL(1);
+
 GC_API void GC_CALL GC_finalize_objects(void);
 
 #ifdef __cplusplus

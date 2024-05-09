@@ -192,6 +192,10 @@
 # define INIT_PERF_MEASUREMENT GC_start_performance_measurement()
 #endif
 
+# ifdef BUFFERED_FINALIZATION
+#   include "gc/gc_disclaim.h"
+# endif
+
 #define GC_COND_INIT() \
     INIT_FORK_SUPPORT; INIT_MANUAL_VDB_ALLOWED; INIT_PAGES_EXECUTABLE; \
     GC_OPT_INIT; CHECK_GCLIB_VERSION; \
@@ -1670,6 +1674,31 @@ static void run_one_test(void)
           NOOP1_PTR(p);
           AO_fetch_and_add1(&collectable_count);
       }
+#     ifdef BUFFERED_FINALIZATION
+        {
+            size_t i;
+            void *p;
+
+            GC_init();
+
+            p = GC_buffered_finalize_malloc(17);
+            CHECK_OUT_OF_MEMORY(p);
+            AO_fetch_and_add1(&collectable_count);
+
+            for (i = sizeof(GC_word); i <= HBLKSIZE * 4; i *= 2) {
+              p = checkOOM(GC_buffered_finalize_memalign(i, 17));
+              AO_fetch_and_add1(&collectable_count);
+              if ((GC_word)p % i != 0 || *(int *)p != 0) {
+                GC_printf("GC_buffered_finalize_posix_memalign(%u,17) produced incorrect result: %p\n",
+                          (unsigned)i, p);
+                FAIL;
+              }
+            }
+            (void)GC_buffered_finalize_posix_memalign(&p, 64, 1);
+            CHECK_OUT_OF_MEMORY(p);
+            AO_fetch_and_add1(&collectable_count);
+        }
+#     endif
 #     ifndef GC_NO_VALLOC
         {
           void *p = checkOOM(GC_valloc(78));
