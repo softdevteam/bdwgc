@@ -136,9 +136,6 @@ GC_API GC_ATTR_MALLOC void * GC_CALL GC_finalized_malloc(size_t lb,
 
 # ifdef BUFFERED_FINALIZATION
 
-STATIC GC_finalization_buffer_hdr* start_buffer;
-STATIC struct GC_current_buffer cur_buffer;
-
 static void* init_finalize_thread(void *arg)
 {
     while (1) {
@@ -178,28 +175,28 @@ STATIC int GC_CALLBACK GC_push_object_to_fin_buffer(void *obj)
         return 0;
     }
 
-    if (start_buffer == NULL) {
+    if (GC_finalizer_buffer_head == NULL) {
         /* This can happen for two reasons:
          *   1) This is first time a finalizable object is unreachable and no
          *   finalization buffers have been created yet.
          *
          *   2) The buffer(s) have already passed to a finalization thread
          *   which is processing them. We must start again. */
-        start_buffer = GC_new_buffer();
-        cur_buffer.hdr = start_buffer;
-        cur_buffer.cursor = (void**) (start_buffer + 1);
+        GC_finalizer_buffer_head = GC_new_buffer();
+        GC_finalizer_buffer_current.hdr = GC_finalizer_buffer_head;
+        GC_finalizer_buffer_current.cursor = (void**) (GC_finalizer_buffer_head + 1);
     }
 
-    void** last = (void**) ((void *)cur_buffer.hdr + GC_page_size);
-    if (cur_buffer.cursor == last) {
+    void** last = (void**) ((void *)GC_finalizer_buffer_current.hdr + GC_page_size);
+    if (GC_finalizer_buffer_current.cursor == last) {
         GC_finalization_buffer_hdr* next = GC_new_buffer();
-        cur_buffer.hdr->next = next;
-        cur_buffer.hdr = next;
-        cur_buffer.cursor = (void**) (next + 1);
+        GC_finalizer_buffer_current.hdr->next = next;
+        GC_finalizer_buffer_current.hdr = next;
+        GC_finalizer_buffer_current.cursor = (void**) (next + 1);
     }
 
-    *cur_buffer.cursor = obj;
-    cur_buffer.cursor++;
+    *GC_finalizer_buffer_current.cursor = obj;
+    GC_finalizer_buffer_current.cursor++;
 
     return 1;
 }
@@ -258,8 +255,8 @@ GC_API void GC_CALL GC_finalize_objects(void) {
      * collection, so the finalisation thread will always load the up-to-date
      * version of this global. */
     GC_disable();
-    GC_finalization_buffer_hdr* buffer = start_buffer;
-    start_buffer = NULL;
+    GC_finalization_buffer_hdr* buffer = GC_finalizer_buffer_head;
+    GC_finalizer_buffer_head = NULL;
     GC_enable();
 
     while(buffer != NULL)

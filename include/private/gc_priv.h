@@ -341,6 +341,21 @@ typedef struct hblkhdr hdr;
 
 #include "gc/gc_inline.h"
 
+#ifdef BUFFERED_FINALIZATION
+
+typedef struct GC_finalization_buffer_hdr GC_finalization_buffer_hdr;
+
+struct GC_finalization_buffer_hdr {
+    GC_finalization_buffer_hdr* next;
+};
+
+struct GC_current_buffer {
+    GC_finalization_buffer_hdr* hdr;
+    void** cursor;
+};
+
+#endif
+
 /*********************************/
 /*                               */
 /* Definitions for conservative  */
@@ -1579,8 +1594,14 @@ struct _GC_arrays {
 # ifdef ENABLE_DISCLAIM
 #   define GC_finalized_kind GC_arrays._finalized_kind
     unsigned _finalized_kind;
+# ifdef BUFFERED_FINALIZATION
 #   define GC_fin_q_kind GC_arrays._fin_q_kind
     unsigned _fin_q_kind;
+#   define GC_finalizer_buffer_head GC_arrays._fin_buffer_head
+    GC_finalization_buffer_hdr* _fin_buffer_head;
+#   define GC_finalizer_buffer_current GC_arrays._fin_buffer_current
+    struct GC_current_buffer _fin_buffer_current;
+# endif
 # endif
 # define n_root_sets GC_arrays._n_root_sets
 # define GC_excl_table_entries GC_arrays._excl_table_entries

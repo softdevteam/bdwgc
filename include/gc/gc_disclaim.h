@@ -69,17 +69,6 @@ GC_API GC_ATTR_MALLOC GC_ATTR_ALLOC_SIZE(1) void * GC_CALL
             const struct GC_finalizer_closure * /* fc */) GC_ATTR_NONNULL(2);
 
 
-typedef struct GC_finalization_buffer_hdr GC_finalization_buffer_hdr;
-
-struct GC_finalization_buffer_hdr {
-    GC_finalization_buffer_hdr* next;
-};
-
-struct GC_current_buffer {
-    GC_finalization_buffer_hdr* hdr;
-    void** cursor;
-};
-
 /* This API is defined only if the library has been suitably compiled   */
 /* (i.e. with ENABLE_DISCLAIM defined).                                 */
 
