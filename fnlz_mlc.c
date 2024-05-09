@@ -288,6 +288,7 @@ void GC_finalize_buffer(GC_finalization_buffer_hdr* buffer) {
         word finalizer_word = (*(word *)obj) & ~(word)FINALIZER_CLOSURE_FLAG;
         GC_disclaim_proc finalizer = (GC_disclaim_proc) finalizer_word;
         (finalizer)(obj);
+        GC_num_finalized++;
         /* Prevent the object from being re-added to the finalization queue */
         *(word *)obj = finalizer_word | HAS_BEEN_FINALIZED_FLAG;
         cursor++;
@@ -325,6 +326,10 @@ GC_INNER void GC_maybe_spawn_finalize_thread()
     pthread_t t;
     pthread_create(&t, NULL, init_finalize_thread, NULL /* arg */);
     GC_finalizer_thread_exists = 1;
+}
+
+GC_API size_t GC_finalized_total(void) {
+    return GC_num_finalized;
 }
 
 # endif

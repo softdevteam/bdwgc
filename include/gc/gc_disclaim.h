@@ -103,6 +103,8 @@ GC_API int GC_CALL GC_buffered_finalize_posix_memalign(void ** /* memptr */, siz
 
 GC_API void GC_CALL GC_finalize_objects(void);
 
+GC_API size_t GC_finalized_total(void);
+
 #ifdef __cplusplus
   } /* extern "C" */
 #endif
