@@ -1609,6 +1609,8 @@ struct _GC_arrays {
     struct GC_current_buffer _fin_buffer_current;
 #   define GC_finalizer_thread_exists GC_arrays._fin_thread_exists
     int _fin_thread_exists;
+#   define GC_num_finalized GC_arrays._fin_total
+    unsigned _fin_total;
 # endif
 # endif
 # define n_root_sets GC_arrays._n_root_sets
