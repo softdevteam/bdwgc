@@ -224,8 +224,6 @@ GC_API void GC_CALL GC_init_buffered_finalization(void)
 
     GC_register_disclaim_proc_inner(GC_fin_q_kind, GC_push_object_to_fin_buffer, TRUE);
     UNLOCK();
-    pthread_t t;
-    pthread_create(&t, NULL, init_finalize_thread, NULL /* arg */);
 }
 
 void GC_finalize_buffer(GC_finalization_buffer_hdr* buffer) {
@@ -267,6 +265,16 @@ GC_API void GC_CALL GC_finalize_objects(void) {
         GC_delete_buffer(buffer);
         buffer = next;
     }
+}
+
+GC_INNER void GC_maybe_spawn_finalize_thread()
+{
+    if (GC_finalizer_thread_exists || !GC_finalizer_buffer_head)
+        return;
+
+    pthread_t t;
+    pthread_create(&t, NULL, init_finalize_thread, NULL /* arg */);
+    GC_finalizer_thread_exists = 1;
 }
 
 # endif
