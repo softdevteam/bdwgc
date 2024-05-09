@@ -62,6 +62,8 @@
 
 # define AO_compiler_barrier() __atomic_signal_fence(__ATOMIC_SEQ_CST)
 
+# define AO_memory_fence() __atomic_thread_fence(__ATOMIC_SEQ_CST)
+
 # if defined(THREAD_SANITIZER) && !defined(AO_USE_ATOMIC_THREAD_FENCE)
     /* Workaround a compiler warning (reported by gcc-11, at least)     */
     /* that atomic_thread_fence is unsupported with thread sanitizer.   */

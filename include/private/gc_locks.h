@@ -269,7 +269,9 @@
       GC_EXTERN volatile unsigned char GC_collecting;
 #     ifdef AO_HAVE_char_store
 #       define ENTER_GC() AO_char_store(&GC_collecting, TRUE)
-#       define EXIT_GC() AO_char_store(&GC_collecting, FALSE)
+#       define EXIT_GC() \
+          AO_memory_fence(); \
+          AO_char_store(&GC_collecting, FALSE)
 #     else
 #       define ENTER_GC() (void)(GC_collecting = TRUE)
 #       define EXIT_GC() (void)(GC_collecting = FALSE)
