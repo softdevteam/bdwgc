@@ -774,6 +774,11 @@ GC_INNER void GC_push_all_stacks(void)
     pthread_t self = pthread_self();
     word total_size = 0;
 
+    // We need to push the TLS rootset for the current thread (i.e. the thread
+    // which invoked GC). The TLS rootset for all other threads is pushed from
+    // inside their suspend handler.
+    GC_self_thread_inner() -> crtn -> tls_rootset = GC_tls_rootset();
+
     GC_ASSERT(I_HOLD_LOCK());
     GC_ASSERT(GC_thr_initialized);
 #   ifdef DEBUG_THREADS
@@ -859,6 +864,10 @@ GC_INNER void GC_push_all_stacks(void)
             GC_sp_corrector((void **)&lo, (void *)(p -> id));
 #       endif
         GC_push_all_stack_sections(lo, hi, traced_stack_sect);
+#       ifdef DEBUG_THREADS
+        GC_log_printf("Pushing TLS rootset from thread %p\n",
+                (void *)(p -> id), crtn -> tls_rootset);
+#       endif
         GC_mark_and_push_stack(crtn->tls_rootset);
 #       ifdef STACK_GROWS_UP
           total_size += lo - hi;
