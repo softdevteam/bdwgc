@@ -44,6 +44,11 @@
 
 EXTERN_C_BEGIN
 
+typedef struct GC_ThreadLocalRoots {
+    ptr_t start;
+    ptr_t end;
+} tlr;
+
 typedef struct GC_StackContext_Rep {
 # if defined(THREAD_SANITIZER) && defined(SIGNAL_BASED_STOP_WORLD)
     char dummy[sizeof(oh)];     /* A dummy field to avoid TSan false    */
@@ -117,6 +122,7 @@ typedef struct GC_StackContext_Rep {
                                 /* stack (thread); may be NULL.         */
 
   ptr_t tls_rootset;
+  tlr compiler_thread_roots;
 } *GC_stack_context_t;
 
 #ifdef GC_WIN32_THREADS
