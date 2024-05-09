@@ -1476,6 +1476,10 @@ GC_API void GC_CALL GC_init(void)
 #   if defined(GWW_VDB) && !defined(KEEP_BACK_PTRS)
       GC_ASSERT(GC_bytes_allocd + GC_bytes_allocd_before_gc == 0);
 #   endif
+
+# ifdef BUFFERED_FINALIZATION
+  GC_init_buffered_finalization();
+# endif
 }
 
 GC_API void GC_CALL GC_enable_incremental(void)
