@@ -777,7 +777,15 @@ GC_INNER void GC_push_all_stacks(void)
     // We need to push the TLS rootset for the current thread (i.e. the thread
     // which invoked GC). The TLS rootset for all other threads is pushed from
     // inside their suspend handler.
-    GC_self_thread_inner() -> crtn -> tls_rootset = GC_tls_rootset();
+    //
+    // However, a GC can be scheduled by the current thread while it is being
+    // registered. This is fine because it won't contain any roots yet -- but it
+    // does mean that the thread might not have setup a context yet. So we must
+    // perform null check.
+    GC_thread me = GC_self_thread_inner();
+    if (me != NULL) {
+        me -> crtn -> tls_rootset = GC_tls_rootset();
+    }
 
     GC_ASSERT(I_HOLD_LOCK());
     GC_ASSERT(GC_thr_initialized);
