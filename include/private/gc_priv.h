@@ -1286,7 +1286,7 @@ struct hblk {
 # ifdef LARGE_CONFIG
 #   define MAX_ROOT_SETS 8192
 # elif !defined(SMALL_CONFIG)
-#   define MAX_ROOT_SETS 2048
+#   define MAX_ROOT_SETS 8192
 # else
 #   define MAX_ROOT_SETS 512
 # endif
