@@ -69,6 +69,7 @@ GC_API GC_ATTR_MALLOC GC_ATTR_ALLOC_SIZE(1) void * GC_CALL
             const struct GC_finalizer_closure * /* fc */) GC_ATTR_NONNULL(2);
 
 
+#ifdef BUFFERED_FINALIZATION
 /* This API is defined only if the library has been suitably compiled   */
 /* (i.e. with ENABLE_DISCLAIM defined).                                 */
 
@@ -104,6 +105,8 @@ GC_API int GC_CALL GC_buffered_finalize_posix_memalign(void ** /* memptr */, siz
 GC_API void GC_CALL GC_finalize_objects(void);
 
 GC_API size_t GC_finalized_total(void);
+
+#endif
 
 #ifdef __cplusplus
   } /* extern "C" */

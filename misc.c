@@ -37,6 +37,10 @@
 # include <floss.h>
 #endif
 
+#ifdef BUFFERED_FINALIZATION
+# include "gc/gc_disclaim.h"
+#endif
+
 #ifdef THREADS
 # ifdef PCR
 #   include "il/PCR_IL.h"
