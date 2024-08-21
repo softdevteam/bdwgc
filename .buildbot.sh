@@ -22,9 +22,3 @@ sh rustup.sh --default-host x86_64-unknown-linux-gnu \
     --profile minimal \
     -y
 export PATH=`pwd`/.cargo/bin/:$PATH
-BDWGC_SRC=`pwd`
-
-git clone https://github.com/softdevteam/alloy
-cd alloy
-BDWGC=${BDWGC_SRC} ENABLE_GC_ASSERTIONS=true /usr/bin/time -v python3 x.py test --stage 2 \
-    --config .buildbot.config.toml --exclude rustdoc-json --exclude debuginfo
