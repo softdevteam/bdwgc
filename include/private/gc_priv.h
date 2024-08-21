@@ -341,6 +341,7 @@ typedef struct hblkhdr hdr;
 
 #include "gc/gc_inline.h"
 
+<<<<<<< HEAD
 #ifdef BUFFERED_FINALIZATION
 
 typedef struct GC_finalization_buffer_hdr GC_finalization_buffer_hdr;
@@ -355,6 +356,9 @@ struct GC_current_buffer {
 };
 
 GC_INNER void GC_maybe_spawn_finalize_thread();
+=======
+GC_INNER void GC_maybe_wake_finalizer_thread();
+>>>>>>> b44b0a3e (Revert to using old GC_finalize mechanism)
 
 #endif
 
@@ -402,11 +406,7 @@ GC_INNER void GC_maybe_spawn_finalize_thread();
 EXTERN_C_BEGIN
 
 #ifndef GC_NO_FINALIZATION
-#ifdef BUFFERED_FINALIZATION
-# define GC_INVOKE_FINALIZERS() GC_maybe_spawn_finalize_thread()
-#else
-# define GC_INVOKE_FINALIZERS() GC_notify_or_invoke_finalizers()
-#endif
+# define GC_INVOKE_FINALIZERS() GC_maybe_wake_finalizer_thread()
   GC_INNER void GC_notify_or_invoke_finalizers(void);
                         /* If GC_finalize_on_demand is not set, invoke  */
                         /* eligible finalizers. Otherwise:              */
