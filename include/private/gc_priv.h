@@ -341,26 +341,7 @@ typedef struct hblkhdr hdr;
 
 #include "gc/gc_inline.h"
 
-<<<<<<< HEAD
-#ifdef BUFFERED_FINALIZATION
-
-typedef struct GC_finalization_buffer_hdr GC_finalization_buffer_hdr;
-
-struct GC_finalization_buffer_hdr {
-    GC_finalization_buffer_hdr* next;
-};
-
-struct GC_current_buffer {
-    GC_finalization_buffer_hdr* hdr;
-    void** cursor;
-};
-
-GC_INNER void GC_maybe_spawn_finalize_thread();
-=======
 GC_INNER void GC_maybe_wake_finalizer_thread();
->>>>>>> b44b0a3e (Revert to using old GC_finalize mechanism)
-
-#endif
 
 /*********************************/
 /*                               */
@@ -1597,21 +1578,11 @@ struct _GC_arrays {
 #   define GC_trace_buf_ptr GC_arrays._trace_buf_ptr
     int _trace_buf_ptr;
 # endif
+#   define GC_finalizer_thread_exists GC_arrays._fin_thread_exists
+    int _fin_thread_exists;
 # ifdef ENABLE_DISCLAIM
 #   define GC_finalized_kind GC_arrays._finalized_kind
     unsigned _finalized_kind;
-# ifdef BUFFERED_FINALIZATION
-#   define GC_fin_q_kind GC_arrays._fin_q_kind
-    unsigned _fin_q_kind;
-#   define GC_finalizer_buffer_head GC_arrays._fin_buffer_head
-    GC_finalization_buffer_hdr* _fin_buffer_head;
-#   define GC_finalizer_buffer_current GC_arrays._fin_buffer_current
-    struct GC_current_buffer _fin_buffer_current;
-#   define GC_finalizer_thread_exists GC_arrays._fin_thread_exists
-    int _fin_thread_exists;
-#   define GC_num_finalized GC_arrays._fin_total
-    unsigned _fin_total;
-# endif
 # endif
 # define n_root_sets GC_arrays._n_root_sets
 # define GC_excl_table_entries GC_arrays._excl_table_entries

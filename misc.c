@@ -1481,9 +1481,6 @@ GC_API void GC_CALL GC_init(void)
       GC_ASSERT(GC_bytes_allocd + GC_bytes_allocd_before_gc == 0);
 #   endif
 
-# ifdef BUFFERED_FINALIZATION
-  GC_init_buffered_finalization();
-# endif
 }
 
 GC_API void GC_CALL GC_enable_incremental(void)
@@ -2136,11 +2133,6 @@ GC_API void GC_CALL GC_enable(void)
     LOCK();
     GC_ASSERT(GC_dont_gc != 0); /* ensure no counter underflow */
     GC_dont_gc--;
-#ifndef BUFFERED_FINALIZATION
-    if (!GC_dont_gc && GC_heapsize > GC_heapsize_on_gc_disable)
-      WARN("Heap grown by %" WARN_PRIuPTR " KiB while GC was disabled\n",
-           (GC_heapsize - GC_heapsize_on_gc_disable) >> 10);
-#endif
     UNLOCK();
 }
 
