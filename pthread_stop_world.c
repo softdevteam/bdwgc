@@ -398,7 +398,6 @@ STATIC void GC_suspend_handler_inner(ptr_t dummy, void *context)
   }
   crtn = me -> crtn;
   GC_store_stack_ptr(crtn);
-  crtn -> tls_rootset = GC_tls_rootset();
   get_thread_local_roots(&tlr);
   crtn -> compiler_thread_roots = tlr;
 
@@ -834,7 +833,6 @@ GC_INNER void GC_push_all_stacks(void)
     if (me != NULL) {
         struct GC_ThreadLocalRoots tlr;
         get_thread_local_roots(&tlr);
-        me -> crtn -> tls_rootset = GC_tls_rootset();
         me -> crtn -> compiler_thread_roots = tlr;
     }
 
