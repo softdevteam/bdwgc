@@ -894,7 +894,7 @@ static void* init_finalize_thread(void *arg)
     }
     flzr_can_work = 0;
     pthread_mutex_unlock(&flzr_mtx);
-    GC_invoke_finalizers();
+    GC_finalizers_run += GC_invoke_finalizers();
   }
   return arg;
 }
@@ -915,4 +915,9 @@ GC_INNER void GC_maybe_wake_finalizer_thread()
   flzr_can_work = 1;
   pthread_cond_signal(&flzr_t_has_work);
   pthread_mutex_unlock(&flzr_mtx);
+}
+
+GC_API size_t GC_finalized_total()
+{
+  return GC_finalizers_run;
 }

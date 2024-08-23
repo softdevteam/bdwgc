@@ -1432,6 +1432,8 @@ struct _GC_arrays {
         /* Bytes of memory explicitly deallocated while         */
         /* finalizers were running.  Used to approximate memory */
         /* explicitly deallocated by finalizers.                */
+  size_t _finalizers_run;
+        /* Number of finalizers that have been run so far.      */
   bottom_index *_all_bottom_indices;
         /* Pointer to the first (lowest address) bottom_index;  */
         /* assumes the allocator lock is held.                  */
@@ -1711,6 +1713,7 @@ GC_API_PRIV GC_FAR struct _GC_arrays GC_arrays;
 #define GC_composite_in_use GC_arrays._composite_in_use
 #define GC_excl_table GC_arrays._excl_table
 #define GC_finalizer_bytes_freed GC_arrays._finalizer_bytes_freed
+#define GC_finalizers_run GC_arrays._finalizers_run
 #define GC_heapsize GC_arrays._heapsize
 #define GC_large_allocd_bytes GC_arrays._large_allocd_bytes
 #define GC_large_free_bytes GC_arrays._large_free_bytes

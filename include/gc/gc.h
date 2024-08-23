@@ -220,6 +220,10 @@ GC_API GC_ATTR_DEPRECATED int GC_finalize_on_demand;
 GC_API void GC_CALL GC_set_finalize_on_demand(int);
 GC_API int GC_CALL GC_get_finalize_on_demand(void);
 
+/* Returns the total number of finalizers that have been run so far     */
+/* by the collector.                                                    */
+GC_API size_t GC_CALL GC_finalized_total(void);
+
 GC_API GC_ATTR_DEPRECATED int GC_java_finalization;
                         /* Mark objects reachable from finalizable      */
                         /* objects in a separate post-pass.  This makes */
