@@ -1518,6 +1518,13 @@ GC_API int GC_CALL GC_invoke_finalizers(void);
 # define GC_reachable_here(ptr) GC_noop1((GC_word)(ptr))
 #endif
 
+/* Explicitly tell the collector that an object is reachable    */
+/* at a particular program point.  This prevents the argument   */
+/* pointer from being optimized away, even it is otherwise no   */
+/* longer needed. Used to prevent finalizers from running when  */
+/* the associated object is still in use.                       */
+GC_API void GC_CALL GC_keep_alive(GC_word);
+
 /* Make the argument appear live to compiler.  Should be robust against */
 /* the whole program analysis.                                          */
 GC_API void GC_CALL GC_noop1(GC_word);
