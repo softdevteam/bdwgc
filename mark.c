@@ -54,6 +54,11 @@ GC_API void GC_CALL GC_noop1(GC_word x)
 # endif
 }
 
+GC_API void GC_keep_alive(GC_word x)
+{
+  GC_reachable_here(x);
+}
+
 /* Initialize GC_obj_kinds properly and standard free lists properly.   */
 /* This must be done statically since they may be accessed before       */
 /* GC_init is called.                                                   */
