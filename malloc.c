@@ -315,7 +315,10 @@ GC_INNER void * GC_generic_malloc_aligned(size_t lb, int k, unsigned flags,
 
 GC_API GC_ATTR_MALLOC void * GC_CALL GC_generic_malloc(size_t lb, int k)
 {
-    return GC_generic_malloc_aligned(lb, k, 0 /* flags */, 0 /* align_m1 */);
+    void* ptr =  GC_generic_malloc_aligned(lb, k, 0 /* flags */, 0 /* align_m1 */);
+    if (ptr)
+      GC_clear_uncollectable(ptr);
+    return ptr;
 }
 
 GC_API GC_ATTR_MALLOC void * GC_CALL GC_malloc_kind_global(size_t lb, int k)
@@ -451,7 +454,14 @@ GC_API GC_ATTR_MALLOC void * GC_CALL GC_generic_malloc_uncollectable(
 /* Allocate lb bytes of pointerful, traced, but not collectible data.   */
 GC_API GC_ATTR_MALLOC void * GC_CALL GC_malloc_uncollectable(size_t lb)
 {
+#ifdef FINALIZER_ELISION
+  void* ptr = GC_generic_malloc(lb, NORMAL);
+  if (ptr)
+    GC_set_uncollectable(ptr);
+  return ptr;
+#else
   return GC_generic_malloc_uncollectable(lb, UNCOLLECTABLE);
+#endif
 }
 
 #ifdef GC_ATOMIC_UNCOLLECTABLE
@@ -667,8 +677,10 @@ GC_API void GC_CALL GC_free(void * p)
         if (EXPECT(NULL == hhdr, FALSE)) return;
 #   endif
     GC_ASSERT(GC_base(p) == p);
+    GC_ASSERT(GC_is_uncollectable(p));
     LOCK();
     free_internal(p, hhdr);
+
     FREE_PROFILER_HOOK(p);
     UNLOCK();
 }

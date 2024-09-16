@@ -187,8 +187,13 @@ GC_INNER void GC_clear_hdr_marks(hdr *hhdr)
     /* No race as GC_realloc holds the allocator lock while updating hb_sz. */
     last_bit = FINAL_MARK_BIT((size_t)hhdr->hb_sz);
 # endif
+    unsigned i;
+    size_t sz = (size_t)hhdr->hb_sz;
+    unsigned n_marks = (unsigned)FINAL_MARK_BIT(sz);
 
-    BZERO(hhdr -> hb_marks, sizeof(hhdr->hb_marks));
+    for (i = 0; i <= n_marks; i += (unsigned)MARK_BIT_OFFSET(sz)) {
+        hhdr -> hb_marks[i] &= ~MARK_TAG;
+    }
     set_mark_bit_from_hdr(hhdr, last_bit);
     hhdr -> hb_n_marks = 0;
 }

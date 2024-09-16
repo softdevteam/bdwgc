@@ -153,7 +153,7 @@ GC_INLINE mse * GC_push_obj(ptr_t obj, const hdr * hhdr, mse * mark_stack_top,
       { /* cannot use do-while(0) here */ \
         char * mark_byte_addr = (char *)(hhdr)->hb_marks + (bit_no); \
         if (*mark_byte_addr != 0) break; /* go to the enclosing loop end */ \
-        *mark_byte_addr = 1; \
+        *mark_byte_addr |= MARK_TAG; \
       }
 # endif /* !PARALLEL_MARK */
 #else

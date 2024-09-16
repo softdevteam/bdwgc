@@ -165,6 +165,8 @@ GC_API void * GC_CALL GC_realloc(void * p, size_t lb)
     }
     result = GC_generic_or_special_malloc((word)lb, obj_kind);
     if (EXPECT(result != NULL, TRUE)) {
+      if(GC_is_uncollectable(p))
+        GC_set_uncollectable(result);
       /* In case of shrink, it could also return original object.       */
       /* But this gives the client warning of imminent disaster.        */
       BCOPY(p, result, sz);

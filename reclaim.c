@@ -201,12 +201,13 @@ STATIC ptr_t GC_reclaim_clear(struct hblk *hbp, const hdr *hhdr, word sz,
     p = hbp -> hb_body;
     plim = p + HBLKSIZE - sz;
     for (bit_no = 0; ADDR_GE(plim, p); bit_no += MARK_BIT_OFFSET(sz)) {
-        if (mark_bit_from_hdr(hhdr, bit_no)) {
+        if (mark_bit_from_hdr(hhdr, bit_no) || uncollectable_bit_from_hdr(hhdr, bit_no)) {
             p += sz;
         } else {
             /* The object is available - put it on list. */
             obj_link(p) = list;
             list = p;
+            clear_uncollectable_bit_from_hdr(HDR(p), bit_no);
             FREE_PROFILER_HOOK(p);
             p = (ptr_t)GC_clear_block((word *)p, sz, pcount);
         }
@@ -231,11 +232,12 @@ STATIC ptr_t GC_reclaim_uninit(struct hblk *hbp, const hdr *hhdr, word sz,
     plim = (ptr_t)hbp + HBLKSIZE - sz;
     for (bit_no = 0; ADDR_GE(plim, p);
          bit_no += MARK_BIT_OFFSET(sz), p += sz) {
-        if (!mark_bit_from_hdr(hhdr, bit_no)) {
+        if (!mark_bit_from_hdr(hhdr, bit_no) && !uncollectable_bit_from_hdr(hhdr, bit_no)) {
             n_bytes_found += sz;
             /* The object is available - put it on list. */
             obj_link(p) = list;
             list = p;
+            clear_uncollectable_bit_from_hdr(HDR(p), bit_no);
             FREE_PROFILER_HOOK(p);
         }
     }
@@ -293,7 +295,7 @@ STATIC void GC_reclaim_check(struct hblk *hbp, const hdr *hhdr, word sz)
     plim = p + HBLKSIZE - sz;
     for (bit_no = 0; ADDR_GE(plim, p);
          bit_no += MARK_BIT_OFFSET(sz), p += sz) {
-      if (!mark_bit_from_hdr(hhdr, bit_no))
+      if (!mark_bit_from_hdr(hhdr, bit_no) && !uncollectable_bit_from_hdr(hhdr, bit_no))
         GC_add_leaked(p);
     }
 }
@@ -866,7 +868,7 @@ STATIC void GC_CALLBACK GC_do_enumerate_reachable_objects(struct hblk *hbp,
   }
   /* Go through all objects in the block. */
   for (bit_no = 0; ADDR_GE(plim, p); bit_no += MARK_BIT_OFFSET(sz), p += sz) {
-    if (mark_bit_from_hdr(hhdr, bit_no)) {
+    if (mark_bit_from_hdr(hhdr, bit_no) || uncollectable_bit_from_hdr(hhdr, bit_no)) {
       ((struct enumerate_reachable_s *)ped)->proc(p, sz,
                         ((struct enumerate_reachable_s *)ped)->client_data);
     }
