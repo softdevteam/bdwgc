@@ -25,6 +25,14 @@
 /* originally on free lists which we had to drop.                       */
 GC_INNER signed_word GC_bytes_found = 0;
 
+#ifdef GC_PTHREADS
+static pthread_mutex_t flzr_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t flzr_t_has_work = PTHREAD_COND_INITIALIZER;
+static int flzr_can_work = 0;
+#elif
+#error "This fork of BDWGC only supports POSIX threads"
+#endif
+
 #if defined(PARALLEL_MARK)
   /* Number of threads currently building free lists without holding    */
   /* the allocator lock.  It is not safe to collect if this is nonzero. */
@@ -52,6 +60,8 @@ STATIC unsigned GC_n_leaked = 0;
 #if !defined(EAGER_SWEEP) && defined(ENABLE_DISCLAIM)
   STATIC void GC_reclaim_unconditionally_marked(void);
 #endif
+
+STATIC unsigned GC_finalizer_thread_exists = 0;
 
 GC_INLINE void GC_add_leaked(ptr_t leaked)
 {
@@ -879,4 +889,41 @@ GC_API void GC_CALL GC_enumerate_reachable_objects_inner(
   ed.proc = proc;
   ed.client_data = client_data;
   GC_apply_to_all_blocks(GC_do_enumerate_reachable_objects, &ed);
+}
+
+static void* init_finalize_thread(void *arg)
+{
+  while(1) {
+    pthread_mutex_lock(&flzr_mtx);
+    while (flzr_can_work == 0) {
+      pthread_cond_wait(&flzr_t_has_work, &flzr_mtx);
+    }
+    flzr_can_work = 0;
+    pthread_mutex_unlock(&flzr_mtx);
+    GC_finalizers_run += GC_invoke_finalizers();
+  }
+  return arg;
+}
+
+GC_INNER void GC_maybe_wake_finalizer_thread()
+{
+  if (!GC_finalizer_thread_exists) {
+    pthread_t t;
+    pthread_create(&t, NULL, init_finalize_thread, NULL /* arg */);
+    GC_finalizer_thread_exists = 1;
+    return;
+  }
+
+  if (GC_should_invoke_finalizers() == 0)
+    return;
+
+  pthread_mutex_lock(&flzr_mtx);
+  flzr_can_work = 1;
+  pthread_cond_signal(&flzr_t_has_work);
+  pthread_mutex_unlock(&flzr_mtx);
+}
+
+GC_API size_t GC_finalized_total()
+{
+  return GC_finalizers_run;
 }

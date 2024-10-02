@@ -380,11 +380,12 @@ typedef struct hblkhdr hdr;
 EXTERN_C_BEGIN
 
 #ifndef GC_NO_FINALIZATION
+  GC_INNER void GC_maybe_wake_finalizer_thread(void);
   /* If GC_finalize_on_demand is not set, invoke eligible           */
   /* finalizers.  Otherwise: call (*GC_finalizer_notifier)() if     */
   /* there are finalizers to be run, and we have not called this    */
   /* procedure yet this collection cycle.                           */
-# define GC_INVOKE_FINALIZERS() GC_notify_or_invoke_finalizers()
+# define GC_INVOKE_FINALIZERS() GC_maybe_wake_finalizer_thread()
   GC_INNER void GC_notify_or_invoke_finalizers(void);
 
   /* Perform all indicated finalization actions on unmarked         */
@@ -1368,7 +1369,8 @@ struct _GC_arrays {
   /* running.  Used to approximate size of memory explicitly            */
   /* deallocated by finalizers.                                         */
   word _finalizer_bytes_freed;
-
+  /* Number of finalizers that have been run so far.      */
+  size_t _finalizers_run;
   /* Pointer to the first (lowest address) bottom_index; assumes the    */
   /* allocator lock is held.                                            */
   bottom_index *_all_bottom_indices;
@@ -1676,6 +1678,7 @@ GC_API_PRIV GC_FAR struct _GC_arrays GC_arrays;
 #define GC_composite_in_use GC_arrays._composite_in_use
 #define GC_excl_table GC_arrays._excl_table
 #define GC_finalizer_bytes_freed GC_arrays._finalizer_bytes_freed
+#define GC_finalizers_run GC_arrays._finalizers_run
 #define GC_heapsize GC_arrays._heapsize
 #define GC_large_allocd_bytes GC_arrays._large_allocd_bytes
 #define GC_large_free_bytes GC_arrays._large_free_bytes
