@@ -60,6 +60,11 @@ GC_API void GC_CALL GC_noop1_ptr(volatile void *p)
 # endif
 }
 
+GC_API void GC_keep_alive(GC_word x)
+{
+  GC_reachable_here(x);
+}
+
 /* Initialize GC_obj_kinds properly and standard free lists properly.   */
 /* This must be done statically since they may be accessed before       */
 /* GC_init is called.  It is done here, since we need to deal with mark */
