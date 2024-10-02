@@ -33,6 +33,8 @@
 # include <alloca.h>
 #endif
 
+# include <link.h>
+
 GC_INLINE void GC_usleep(unsigned us)
 {
 #   if defined(LINT2) || defined(THREAD_SANITIZER)
@@ -304,10 +306,53 @@ GC_INLINE void GC_store_stack_ptr(GC_stack_context_t crtn)
 # endif
 }
 
+static int find_segment(struct dl_phdr_info *info, size_t size, void *data) {
+    UNUSED_ARG(size);
+    tlr * roots = (tlr *) data;
+
+    for (size_t i = 0; i < info->dlpi_phnum; i ++) {
+        if ( info -> dlpi_phdr[i].p_type != PT_TLS )
+            continue;
+
+        if ( info -> dlpi_tls_data == NULL )
+            /* This SO has no thread locals */
+            return 0;
+
+        size_t memsz = info -> dlpi_phdr[i].p_memsz;
+        ptr_t start = info -> dlpi_tls_data;
+
+        GC_ASSERT(memsz > 0);
+
+        roots -> start = start;
+        roots -> end = start + memsz;
+        return 1;
+    }
+    return 0;
+}
+
+
+/* Get the TLS roots for the current thread.                                  */
+/*                                                                            */
+/* This works because a Rust program (and any shared objects) use the PT_TLS  */
+/* segment in the binary to store every thread's local instance of each       */
+/* thread-local variable. For each thread, these instances are stored at a    */
+/* fixed offset inside the same PT_TLS segment [1].                           */
+/*                                                                            */
+/* This returns the ranges inside the `PT_TLS` segment which contains the     */
+/* thread-local instances for the current thread only.                        */
+/*                                                                            */
+/* [1]: https://www.akkadia.org/drepper/tls.pdf                               */
+void get_thread_local_roots(tlr * roots)
+{
+    dl_iterate_phdr(find_segment, roots);
+    return;
+}
+
 STATIC void GC_suspend_handler_inner(ptr_t dummy, void *context)
 {
   GC_thread me;
   GC_stack_context_t crtn;
+  struct GC_ThreadLocalRoots tlr;
 # ifdef E2K
     ptr_t bs_lo;
     size_t stack_size;
@@ -351,6 +396,8 @@ STATIC void GC_suspend_handler_inner(ptr_t dummy, void *context)
   }
   crtn = me -> crtn;
   GC_store_stack_ptr(crtn);
+  get_thread_local_roots(&tlr);
+  crtn -> compiler_thread_roots = tlr;
 # ifdef E2K
     GC_ASSERT(NULL == crtn -> backing_store_end);
     GET_PROCEDURE_STACK_LOCAL(crtn -> ps_ofs, &bs_lo, &stack_size);
@@ -777,6 +824,21 @@ GC_INNER void GC_push_all_stacks(void)
     pthread_t self = pthread_self();
     word total_size = 0;
 
+    // We need to push the TLS rootset for the current thread (i.e. the thread
+    // which invoked GC). The TLS rootset for all other threads is pushed from
+    // inside their suspend handler.
+    //
+    // However, a GC can be scheduled by the current thread while it is being
+    // registered. This is fine because it won't contain any roots yet -- but it
+    // does mean that the thread might not have setup a context yet. So we must
+    // perform null check.
+    GC_thread me = GC_self_thread_inner();
+    if (me != NULL) {
+        struct GC_ThreadLocalRoots tlr;
+        get_thread_local_roots(&tlr);
+        me -> crtn -> compiler_thread_roots = tlr;
+    }
+
     GC_ASSERT(I_HOLD_LOCK());
     GC_ASSERT(GC_thr_initialized);
 #   ifdef DEBUG_THREADS
@@ -859,6 +921,9 @@ GC_INNER void GC_push_all_stacks(void)
           if (GC_sp_corrector != 0)
             GC_sp_corrector((void **)&lo, (void *)(p -> id));
 #       endif
+        /* Scan the TLS roots */
+        GC_push_all_eager(crtn->compiler_thread_roots.start, crtn->compiler_thread_roots.end);
+
         GC_push_all_stack_sections(lo, hi, traced_stack_sect);
 #       ifdef STACK_GROWS_UP
           total_size += lo - hi;

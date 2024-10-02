@@ -44,6 +44,11 @@
 
 EXTERN_C_BEGIN
 
+typedef struct GC_ThreadLocalRoots {
+    ptr_t start;
+    ptr_t end;
+} tlr;
+
 typedef struct GC_StackContext_Rep {
 # if defined(THREAD_SANITIZER) && defined(SIGNAL_BASED_STOP_WORLD)
     /* A dummy field to avoid TSan false positive about the race        */
@@ -121,6 +126,8 @@ typedef struct GC_StackContext_Rep {
   /* Points to the "frame" data held in stack by the innermost          */
   /* GC_call_with_gc_active() of this stack (thread); may be NULL.      */
   struct GC_traced_stack_sect_s *traced_stack_sect;
+  ptr_t tls_rootset;
+  tlr compiler_thread_roots;
 } *GC_stack_context_t;
 
 #ifdef GC_WIN32_THREADS
