@@ -90,7 +90,7 @@ GC_API void * GC_CALL GC_realloc(void * p, size_t lb)
 
     if (NULL == p) {
       /* Required by ANSI.      */
-      return GC_malloc(lb);
+      return GC_malloc_kind(lb, NORMAL);
     }
     if (0 == lb) /* and p != NULL */ {
 #     ifndef IGNORE_FREE
@@ -457,7 +457,7 @@ GC_API GC_ATTR_MALLOC void * GC_CALL GC_memalign(size_t align, size_t lb)
     if (EXPECT(0 == align || (align & align_m1) != 0, FALSE)) return NULL;
 
     /* TODO: use thread-local allocation */
-    if (align <= GC_GRANULE_BYTES) return GC_malloc(lb);
+    if (align <= GC_GRANULE_BYTES) return GC_malloc_kind(lb, NORMAL);
     return GC_malloc_kind_aligned_global(lb, NORMAL, align_m1);
 }
 
