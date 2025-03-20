@@ -204,6 +204,7 @@ STATIC ptr_t GC_reclaim_clear(struct hblk *hbp, const hdr *hhdr, size_t sz,
             obj_link(p) = list;
             list = p;
             FREE_PROFILER_HOOK(p);
+            GC_total_objects_reclaimed++;
             p = GC_clear_block(p, sz, pcount);
         }
     }
@@ -233,6 +234,7 @@ STATIC ptr_t GC_reclaim_uninit(struct hblk *hbp, const hdr *hhdr, size_t sz,
             obj_link(p) = list;
             list = p;
             FREE_PROFILER_HOOK(p);
+            GC_total_objects_reclaimed++;
         }
     }
     *pcount += n_bytes_found;
@@ -268,6 +270,7 @@ STATIC ptr_t GC_reclaim_uninit(struct hblk *hbp, const hdr *hhdr, size_t sz,
             obj_link(p) = list;
             list = p;
             FREE_PROFILER_HOOK(p);
+            GC_total_objects_reclaimed++;
             p = GC_clear_block(p, sz, pcount);
         }
     }
@@ -433,6 +436,7 @@ STATIC void GC_CALLBACK GC_reclaim_block(struct hblk *hbp,
               GC_bytes_found += (signed_word)sz;
               GC_freehblk(hbp);
               FREE_PROFILER_HOOK(hbp);
+              GC_total_objects_reclaimed++;
             }
         } else {
 #        ifdef ENABLE_DISCLAIM
@@ -469,8 +473,10 @@ STATIC void GC_CALLBACK GC_reclaim_block(struct hblk *hbp,
 
             for (bit_no = 0; ADDR_GE(plim, p);
                  bit_no += MARK_BIT_OFFSET(sz), p += sz) {
-              if (!mark_bit_from_hdr(hhdr, bit_no))
+              if (!mark_bit_from_hdr(hhdr, bit_no)) {
                 FREE_PROFILER_HOOK(p);
+                GC_total_objects_reclaimed++;
+            }
             }
           }
 #       endif
@@ -488,6 +494,7 @@ STATIC void GC_CALLBACK GC_reclaim_block(struct hblk *hbp,
             GC_bytes_found += (signed_word)HBLKSIZE;
             GC_freehblk(hbp);
             FREE_PROFILER_HOOK(hbp);
+            GC_total_objects_reclaimed++;
           }
         } else if (GC_find_leak || !GC_block_nearly_full(hhdr, sz)) {
           /* Group of smaller objects, enqueue the real work.   */
@@ -926,4 +933,9 @@ GC_INNER void GC_maybe_wake_finalizer_thread()
 GC_API size_t GC_finalized_total()
 {
   return GC_finalizers_run;
+}
+
+GC_API size_t GC_reclaimed_objects()
+{
+  return GC_total_objects_reclaimed;
 }

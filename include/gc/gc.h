@@ -208,6 +208,9 @@ GC_API int GC_CALL GC_get_finalize_on_demand(void);
 /* Returns the total number of finalizers that have been run so far     */
 /* by the collector.                                                    */
 GC_API size_t GC_CALL GC_finalized_total(void);
+/* Returns the total number of objects that have been reclaimed so far  */
+/* by the collector.                                                    */
+GC_API size_t GC_CALL GC_objects_reclaimed(void);
 
 /* Mark objects reachable from finalizable objects in a separate        */
 /* post-pass.  This makes it a bit safer to use                         */
