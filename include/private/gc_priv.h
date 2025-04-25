@@ -380,13 +380,12 @@ typedef struct hblkhdr hdr;
 EXTERN_C_BEGIN
 
 #ifndef GC_NO_FINALIZATION
-  GC_INNER void GC_maybe_wake_finalizer_thread(void);
+  GC_INNER void GC_notify_or_invoke_finalizers(void);
   /* If GC_finalize_on_demand is not set, invoke eligible           */
   /* finalizers.  Otherwise: call (*GC_finalizer_notifier)() if     */
   /* there are finalizers to be run, and we have not called this    */
   /* procedure yet this collection cycle.                           */
-# define GC_INVOKE_FINALIZERS() GC_maybe_wake_finalizer_thread()
-  GC_INNER void GC_notify_or_invoke_finalizers(void);
+# define GC_INVOKE_FINALIZERS() GC_notify_or_invoke_finalizers()
 
   /* Perform all indicated finalization actions on unmarked         */
   /* objects.  Unreachable finalizable objects are enqueued for     */
