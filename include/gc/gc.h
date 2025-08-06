@@ -428,12 +428,13 @@ GC_API void GC_CALL GC_start_performance_measurement(void);
 GC_API void GC_CALL GC_enable_benchmark_stats(void);
 
 GC_API void GC_CALL GC_log_metrics(GC_word finalizers_run,
+                                  GC_word finalizers_elided,
                                   GC_word finalizers_registered,
                                   GC_word allocated_gc,
                                   GC_word allocated_arc,
                                   GC_word allocated_rc,
                                   GC_word allocated_boxed,
-                                  int final);
+                                  GC_word explicit_frees);
 
 /* Get the total time of all full collections since the start of the    */
 /* performance measurements.  Includes time spent in the supplementary  */

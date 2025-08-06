@@ -741,6 +741,7 @@ STATIC void GC_register_finalizer_inner(void * obj,
           }
           if (fn == 0) {
             GC_fo_entries--;
+            GC_fin_q--;
             /* May not happen if we get a signal.  But a high   */
             /* estimate will only make the table larger than    */
             /* necessary.                                       */
@@ -823,6 +824,7 @@ STATIC void GC_register_finalizer_inner(void * obj,
     fo_set_next(new_fo, GC_fnlz_roots.fo_head[index]);
     GC_dirty(new_fo);
     GC_fo_entries++;
+    GC_fin_q++;
     GC_fnlz_roots.fo_head[index] = new_fo;
     GC_dirty(GC_fnlz_roots.fo_head + index);
     UNLOCK();
@@ -1461,10 +1463,6 @@ GC_INNER void GC_notify_or_invoke_finalizers(void)
                       (unsigned long)IF_LONG_REFS_PRESENT_ELSE(
                                                     GC_ll_hashtbl.entries, 0));
 
-    if (GC_benchmark)
-        GC_log_printf("%lu,",
-                      (unsigned long)GC_fo_entries);
-
     for (fo = GC_fnlz_roots.finalize_now; fo != NULL; fo = fo_next(fo))
       ++ready;
     if (GC_print_stats)
@@ -1474,9 +1472,6 @@ GC_INNER void GC_notify_or_invoke_finalizers(void)
                       (long)GC_old_dl_entries - (long)GC_dl_hashtbl.entries,
                       (long)IF_LONG_REFS_PRESENT_ELSE(
                                   GC_old_ll_entries - GC_ll_hashtbl.entries, 0));
-    if (GC_benchmark)
-        GC_log_printf("%lu,",
-                      (unsigned long)ready);
   }
 #endif /* !SMALL_CONFIG */
 

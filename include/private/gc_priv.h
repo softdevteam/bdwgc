@@ -553,6 +553,9 @@ EXTERN_C_END
 # define NS_FRAC_TIME_DIFF(a, b) \
     ((unsigned long)((a).tv_nsec + (1000000L*1000 - (b).tv_nsec)) % 1000000UL)
 
+# define NS_TO_MS(ms, ns) \
+    ((double) ms + ((double) ns / 1000000UL))
+
 #else /* !BSD_TIME && !LINUX && !NN_PLATFORM_CTR && !MSWIN32 */
 # include <time.h>
 # if defined(FREEBSD) && !defined(CLOCKS_PER_SEC)
@@ -1309,6 +1312,47 @@ struct HeapSect {
     size_t hs_bytes;
 };
 
+#define ABS_SIGNED_WORD(x) ((x) < 0 ? -(x) : (x))
+
+#define GC_METRICS_FIELDS                                  \
+    X(signed_word, "%ld", collection_number,          -1)  \
+    X(signed_word, "%ld",  kind,                      -1)  \
+    X(word,        "%lu",  mem_hsize_entry,           0)   \
+    X(word,        "%lu",  mem_hsize_exit,            0)   \
+    X(word,        "%lu",  mem_allocd_entry,          0)   \
+    X(word,        "%lu",  mem_allocd_exit,           0)   \
+    X(word,        "%lu",  mem_allocd_flzq,           0)   \
+    X(word,        "%lu",  mem_freed_explicit_entry,  0)   \
+    X(word,        "%lu",  mem_freed_explicit_exit,   0)   \
+    X(word,        "%lu",  mem_freed_swept,           0)   \
+    X(word,        "%lu",  mem_freed_flz,             0)   \
+    X(double,      "%.17g",time_marking,              0)   \
+    X(double,      "%.17g",time_fin_q,                0)   \
+    X(double,      "%.17g",time_sweeping,             0)   \
+    X(double,      "%.17g",time_total,                0)   \
+    X(word,        "%lu",  flz_registered,            0)   \
+    X(word,        "%lu",  flz_elided,                0)   \
+    X(word,        "%lu",  flz_run,                   0)   \
+    X(word,        "%lu",  obj_allocd_arc,            0)   \
+    X(word,        "%lu",  obj_allocd_box,            0)   \
+    X(word,        "%lu",  obj_allocd_flzq,           0)   \
+    X(word,        "%lu",  obj_allocd_gc,             0)   \
+    X(word,        "%lu",  obj_allocd_rc,             0)   \
+    X(word,        "%lu",  obj_freed_swept,           0)   \
+    X(word,        "%lu",  obj_freed_explicit,        0)
+
+typedef struct {
+#define X(type, fmt, name, init) type name;
+    GC_METRICS_FIELDS
+#undef X
+} _GC_metrics;
+
+GC_INLINE void reset_metrics(_GC_metrics *metrics) {
+#define X(type, fmt, name, init) metrics->name = init;
+    GC_METRICS_FIELDS
+#undef X
+}
+
 /* Lists of all heap blocks and free lists as well as other random data */
 /* structures that should not be scanned by the collector.  These are   */
 /* grouped together in a struct so that they can be easily skipped by   */
@@ -1378,6 +1422,8 @@ struct _GC_arrays {
   /* Pointer to the last (highest address) bottom_index; assumes the    */
   /* allocator lock is held.                                            */
   bottom_index *_all_bottom_indices_end;
+
+  _GC_metrics _metrics;
 
   ptr_t _scratch_free_ptr;
   hdr *_hdr_free_list;
@@ -1514,6 +1560,8 @@ struct _GC_arrays {
 # endif
 # define GC_fo_entries GC_arrays._fo_entries
   size_t _fo_entries;
+# define GC_fin_q GC_arrays._fin_q
+  size_t _fin_q;
 # ifndef GC_NO_FINALIZATION
 #   define GC_dl_hashtbl GC_arrays._dl_hashtbl
 #   define GC_fnlz_roots GC_arrays._fnlz_roots
@@ -1675,10 +1723,10 @@ GC_API_PRIV GC_FAR struct _GC_arrays GC_arrays;
 #define GC_bytes_dropped GC_arrays._bytes_dropped
 #define GC_bytes_finalized GC_arrays._bytes_finalized
 #define GC_bytes_freed GC_arrays._bytes_freed
+#define GC_bytes_swept GC_arrays._bytes_swept
 #define GC_composite_in_use GC_arrays._composite_in_use
 #define GC_excl_table GC_arrays._excl_table
 #define GC_finalizer_bytes_freed GC_arrays._finalizer_bytes_freed
-#define GC_finalizers_run GC_arrays._finalizers_run
 #define GC_total_objects_reclaimed GC_arrays._total_objects_reclaimed
 #define GC_heapsize GC_arrays._heapsize
 #define GC_large_allocd_bytes GC_arrays._large_allocd_bytes
@@ -1700,6 +1748,8 @@ GC_API_PRIV GC_FAR struct _GC_arrays GC_arrays;
 #define GC_top_index GC_arrays._top_index
 #define GC_uobjfreelist GC_arrays._uobjfreelist
 #define GC_valid_offsets GC_arrays._valid_offsets
+
+#define GC_metrics GC_arrays._metrics
 
 #define beginGC_arrays ((ptr_t)(&GC_arrays))
 #define endGC_arrays (beginGC_arrays + sizeof(GC_arrays))
@@ -2753,37 +2803,29 @@ GC_API_PRIV void GC_log_printf(const char * format, ...)
 # define GC_ERRINFO_PRINTF GC_log_printf
 #endif
 
-#define GC_BENCHMARK_LOG_MAYBE_HEADER() \
+
+GC_INLINE void GC_write_metrics() {
+    GC_log_printf("{");
+
+    int first = 1;
+
+#define X(type, fmt, name, init) \
+    if (!first) GC_log_printf(","); \
+    GC_log_printf("\"" #name "\":" fmt, GC_metrics.name); \
+    first = 0;
+
+    GC_METRICS_FIELDS
+
+#undef X
+    GC_log_printf("}\n");
+}
+
+#define GC_LOG_METRICS() \
     do { \
-        if (GC_benchmark && GC_get_gc_no() == 0) { \
-            GC_BENCHMARK_LOG_PRINTF( \
-                "collection_number," \
-                "kind," \
-                "heap_size_on_entry," \
-                "time_marking_ms," \
-                "time_marking_ns," \
-                "bytes_freed," \
-                "live_objects_with_finalizers," \
-                "objects_in_finalizer_queue," \
-                "time_fin_q_ms," \
-                "time_fin_q_ns," \
-                "time_sweeping_ms," \
-                "time_sweeping_ns," \
-                "time_total_ms," \
-                "time_total_ns," \
-                "finalizers_run," \
-                "finalizers_registered," \
-                "allocated_gc," \
-                "allocated_arc," \
-                "allocated_rc," \
-                "allocated_boxed\n" \
-            ); \
-        } \
+        if (GC_benchmark) GC_write_metrics(); \
     } while (0)
 
-/* Convenient macros for GC_[verbose_]log_printf invocation.    */
-#define GC_BENCHMARK_LOG_PRINTF \
-                if (EXPECT(!GC_benchmark, TRUE)) {} else GC_log_printf
+
 #define GC_COND_LOG_PRINTF \
                 if (EXPECT(!GC_print_stats, TRUE)) {} else GC_log_printf
 #define GC_VERBOSE_LOG_PRINTF \

@@ -16,6 +16,7 @@
 
 #include "include/gc/gc.h"
 #include "private/gc_pmark.h"
+#include "private/gc_priv.h"
 
 #include <limits.h>
 #include <stdarg.h>
@@ -1522,6 +1523,9 @@ GC_API void GC_CALL GC_init(void)
 #   if defined(GWW_VDB) && !defined(KEEP_BACK_PTRS)
       GC_ASSERT(GC_bytes_allocd + GC_bytes_allocd_before_gc == 0);
 #   endif
+
+    GC_fin_q = 0;
+    reset_metrics(&GC_metrics);
 }
 
 GC_API void GC_CALL GC_enable_incremental(void)
@@ -2810,41 +2814,36 @@ GC_API size_t GC_CALL GC_get_hblk_size(void)
 }
 
 GC_API void GC_CALL GC_log_metrics(GC_word finalizers_run,
+                                  GC_word finalizers_elided,
                                   GC_word finalizers_registered,
                                   GC_word allocated_gc,
                                   GC_word allocated_arc,
                                   GC_word allocated_rc,
                                   GC_word allocated_boxed,
-                                  int final)
+                                  GC_word explicit_frees)
 {
-    if (final == 1) {
-        GC_BENCHMARK_LOG_MAYBE_HEADER();
-        GC_BENCHMARK_LOG_PRINTF("-1," // Sentinel collection number
-                                "final," // Kind
-                                "%lu,"
-                                "0,"    // Time marking ms (n/a)
-                                "0,"    // Time marking ns (n/a)
-                                "0,"    // Bytes freed (n/a)
-                                "%lu,%lu,"
-                                "0,"    // Time in fin q ms (n/a)
-                                "0,"    // Time in fin q ns (n/a)
-                                "0,"    // Time sweeping ms (n/a)
-                                "0,"    // Time sweeping ns (n/a)
-                                "%lu,%u,",
-                                (unsigned long) GC_bytes_allocd,
-                                (unsigned long) GC_fo_entries,
-                                GC_get_total_finalization_ready_objects(),
-                                GC_get_full_gc_total_time(),
-                                GC_get_full_gc_total_ns_frac());
-
-
+    GC_metrics.flz_registered = finalizers_registered;
+    GC_metrics.flz_elided = finalizers_elided;
+    GC_metrics.flz_run = finalizers_run;
+    GC_metrics.obj_allocd_gc = allocated_gc;
+    GC_metrics.obj_allocd_arc = allocated_arc;
+    GC_metrics.obj_allocd_rc = allocated_rc;
+    GC_metrics.obj_allocd_box = allocated_boxed;
+    GC_metrics.obj_freed_explicit = explicit_frees;
+    GC_metrics.obj_allocd_flzq = GC_fin_q;
+    if (GC_bytes_found < 0) {
+        /* This GC grew the heap */
+        GC_metrics.mem_allocd_exit = ABS_SIGNED_WORD(GC_bytes_found);
+        GC_metrics.mem_freed_swept = 0;
+    } else {
+        GC_metrics.mem_freed_swept = GC_bytes_found;
+        GC_metrics.mem_allocd_exit = 0;
     }
-    GC_BENCHMARK_LOG_PRINTF("%lu,%lu,%lu,%lu,%lu,%lu\n",
-                            (unsigned long) finalizers_run,
-                            (unsigned long) finalizers_registered,
-                            (unsigned long) allocated_gc,
-                            (unsigned long) allocated_arc,
-                            (unsigned long) allocated_rc,
-                            (unsigned long) allocated_boxed);
+    GC_metrics.mem_freed_flz = GC_finalizer_bytes_freed;
+    GC_metrics.mem_allocd_flzq = GC_bytes_finalized;
+    GC_metrics.mem_hsize_entry = GC_get_total_bytes();
+    GC_metrics.mem_hsize_exit = GC_metrics.mem_hsize_entry - GC_bytes_found;
 
+    GC_LOG_METRICS();
+    reset_metrics(&GC_metrics);
 }

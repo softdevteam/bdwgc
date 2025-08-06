@@ -506,8 +506,12 @@ STATIC void GC_maybe_gc(void)
     GC_COND_LOG_PRINTF(
                 "***>Full mark for collection #%lu after %lu allocd bytes\n",
                 (unsigned long)GC_gc_no + 1, (unsigned long)GC_bytes_allocd);
-    GC_BENCHMARK_LOG_MAYBE_HEADER();
-    GC_BENCHMARK_LOG_PRINTF("%lu,major,%lu,",(unsigned long)GC_gc_no + 1,(unsigned long)GC_bytes_allocd);
+    if (GC_benchmark) {
+            GC_metrics.collection_number = GC_gc_no + 1;
+            GC_metrics.kind = 2;
+            GC_metrics.mem_allocd_entry = GC_bytes_allocd;
+            GC_metrics.mem_hsize_entry = GC_get_heap_size();
+    }
     GC_promote_black_lists();
     (void)GC_reclaim_all((GC_stop_func)0, TRUE);
     GC_notify_full_gc();
@@ -647,8 +651,8 @@ GC_INNER GC_bool GC_try_to_collect_inner(GC_stop_func stop_func)
         if (GC_print_stats)
           GC_log_printf("Complete collection took %lu ms %lu ns\n",
                         time_diff, ns_frac_diff);
-        if (GC_benchmark)
-          GC_log_printf("%lu,%lu,",time_diff, ns_frac_diff);
+
+        GC_metrics.time_total = NS_TO_MS(time_diff, ns_frac_diff);
       }
 #   endif
     if (GC_on_collection_event)
@@ -860,9 +864,12 @@ STATIC GC_bool GC_stopped_mark(GC_stop_func stop_func)
     GC_COND_LOG_PRINTF(
               "\n--> Marking for collection #%lu after %lu allocated bytes\n",
               (unsigned long)GC_gc_no + 1, (unsigned long)GC_bytes_allocd);
-    GC_BENCHMARK_LOG_MAYBE_HEADER();
-    GC_BENCHMARK_LOG_PRINTF("%lu,minor,%lu,",(unsigned long)GC_gc_no + 1,(unsigned long)GC_bytes_allocd);
-
+    if (GC_benchmark) {
+            GC_metrics.collection_number = GC_gc_no + 1;
+            GC_metrics.kind = 1;
+            GC_metrics.mem_allocd_entry = GC_bytes_allocd;
+            GC_metrics.mem_hsize_entry = GC_get_heap_size();
+    }
 #   ifndef NO_CLOCK
       if (GC_PRINT_STATS_FLAG || measure_performance || GC_benchmark) {
         GET_TIME(start_time);
@@ -987,7 +994,7 @@ STATIC GC_bool GC_stopped_mark(GC_stop_func stop_func)
                               " (%u ms in average)\n", time_diff, ns_frac_diff,
                               total_time / divisor);
             if (GC_benchmark)
-                GC_log_printf("%lu,%lu,", time_diff, ns_frac_diff);
+                GC_metrics.time_marking = NS_TO_MS(time_diff, ns_frac_diff);
           }
         }
       }
@@ -1283,7 +1290,6 @@ STATIC void GC_finish_collection(void)
       GC_ASSERT(GC_heapsize >= GC_unmapped_bytes);
 #   endif
     GC_ASSERT(GC_our_mem_bytes >= GC_heapsize);
-    GC_BENCHMARK_LOG_PRINTF("%ld,", (long)GC_bytes_found);
     GC_DBGLOG_PRINTF("GC #%lu freed %ld bytes, heap %lu KiB ("
                      IF_USE_MUNMAP("+ %lu KiB unmapped ")
                      "+ %lu KiB internal)\n",
@@ -1301,6 +1307,9 @@ STATIC void GC_finish_collection(void)
                           > min_bytes_allocd() + GC_large_free_bytes;
     }
 
+    if (GC_on_collection_event)
+      GC_on_collection_event(GC_EVENT_RECLAIM_END);
+
     /* Reset or increment counters for next cycle.      */
     GC_n_attempts = 0;
     GC_is_full_gc = FALSE;
@@ -1311,8 +1320,6 @@ STATIC void GC_finish_collection(void)
     GC_bytes_freed = 0;
     GC_finalizer_bytes_freed = 0;
 
-    if (GC_on_collection_event)
-      GC_on_collection_event(GC_EVENT_RECLAIM_END);
 #   ifndef NO_CLOCK
       if (GC_print_stats || GC_benchmark) {
         CLOCK_TYPE done_time;
@@ -1322,20 +1329,20 @@ STATIC void GC_finish_collection(void)
           /* A convenient place to output finalization statistics.      */
           GC_print_finalization_stats();
 #       endif
+        word flz_ms = MS_TIME_DIFF(finalize_time, start_time);
+        word flz_ns = NS_FRAC_TIME_DIFF(finalize_time, start_time);
+        word sweep_ms = MS_TIME_DIFF(done_time, finalize_time);
+        word sweep_ns = NS_FRAC_TIME_DIFF(done_time, finalize_time);
         if (GC_print_stats)
             GC_log_printf("Finalize and initiate sweep took %lu ms %lu ns"
                           " + %lu ms %lu ns\n",
-                          MS_TIME_DIFF(finalize_time, start_time),
-                          NS_FRAC_TIME_DIFF(finalize_time, start_time),
-                          MS_TIME_DIFF(done_time, finalize_time),
-                          NS_FRAC_TIME_DIFF(done_time, finalize_time));
+                          flz_ms,
+                          flz_ns,
+                          sweep_ms,
+                          sweep_ns);
         if (GC_benchmark) {
-            GC_log_printf("%lu,%lu,"
-                          "%lu,%lu,",
-                          MS_TIME_DIFF(finalize_time, start_time),
-                          NS_FRAC_TIME_DIFF(finalize_time, start_time),
-                          MS_TIME_DIFF(done_time, finalize_time),
-                          NS_FRAC_TIME_DIFF(done_time, finalize_time));
+            GC_metrics.time_fin_q = NS_TO_MS(flz_ms, flz_ns);
+            GC_metrics.time_sweeping = NS_TO_MS(sweep_ms, sweep_ns);
         }
       }
 #   elif !defined(SMALL_CONFIG) && !defined(GC_NO_FINALIZATION)
